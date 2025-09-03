@@ -6,21 +6,19 @@ use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
-class AdminMiddleware
+class UserMiddleware
 {
     /**
      * Handle an incoming request.
-     *
-     * @param  \Closure(\Illuminate\Http\Request): (\Symfony\Component\HttpFoundation\Response)  $next
      */
     public function handle(Request $request, Closure $next): Response
     {
-        // Ensure user is logged in and is admin
+        // If user is logged in and is an admin, redirect them to admin dashboard
         if (auth()->check() && auth()->user()->role === 'admin') {
-            return $next($request);
+            return redirect('/admin'); // name from your admin.php
         }
 
-        // Otherwise abort with forbidden page
-        return redirect('/');
+        // Otherwise, allow request to continue
+        return $next($request);
     }
 }

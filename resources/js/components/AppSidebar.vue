@@ -2,51 +2,75 @@
 import NavFooter from '@/components/NavFooter.vue';
 import NavMain from '@/components/NavMain.vue';
 import NavUser from '@/components/NavUser.vue';
-import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem
+} from '@/components/ui/sidebar';
 import { type NavItem } from '@/types';
-import { Link } from '@inertiajs/vue3';
-import { BookOpen, Folder, LayoutGrid } from 'lucide-vue-next';
+import { Link, usePage } from '@inertiajs/vue3';
+import { BookOpen, LayoutGrid, User as Person } from 'lucide-vue-next';
 import AppLogo from './AppLogo.vue';
+import { computed } from 'vue';
 
-const mainNavItems: NavItem[] = [
+// Access user from Inertia props
+const page = usePage();
+
+const mainNavItems = computed<NavItem[]>(() => {
+  const items: NavItem[] = [
     {
-        title: 'Dashboard',
-        href: '/',
-        icon: LayoutGrid,
+      title: 'Dashboard',
+      href: page.props.auth?.user?.role === 'admin' ? '/admin' : '/',
+      icon: LayoutGrid,
     },
-];
+  ];
+
+  if (page.props.auth?.user?.role === 'admin') {
+    items.push({
+      title: 'Members',
+      href: '/admin/members',
+      icon: Person,
+    });
+  }
+
+  return items;
+});
 
 const footerNavItems: NavItem[] = [
-    {
-        title: 'Documentation',
-        href: '/docs',
-        icon: BookOpen,
-    },
+  {
+    title: 'Documentation',
+    href: '/docs',
+    icon: BookOpen,
+  },
 ];
 </script>
 
 <template>
-    <Sidebar collapsible="icon" variant="inset">
-        <SidebarHeader>
-            <SidebarMenu>
-                <SidebarMenuItem>
-                    <SidebarMenuButton size="lg" as-child>
-                        <Link :href="'/'">
-                            <AppLogo />
-                        </Link>
-                    </SidebarMenuButton>
-                </SidebarMenuItem>
-            </SidebarMenu>
-        </SidebarHeader>
+  <Sidebar collapsible="icon" variant="inset">
+    <SidebarHeader>
+      <SidebarMenu>
+        <SidebarMenuItem>
+          <SidebarMenuButton size="lg" as-child>
+            <Link :href="'/'">
+              <AppLogo />
+            </Link>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+      </SidebarMenu>
+    </SidebarHeader>
 
-        <SidebarContent>
-            <NavMain :items="mainNavItems" />
-        </SidebarContent>
+    <SidebarContent>
+      <NavMain :items="mainNavItems" />
+    </SidebarContent>
 
-        <SidebarFooter>
-            <NavFooter :items="footerNavItems" />
-            <NavUser />
-        </SidebarFooter>
-    </Sidebar>
-    <slot />
+    <SidebarFooter>
+      <NavFooter :items="footerNavItems" />
+      <NavUser />
+    </SidebarFooter>
+  </Sidebar>
+  <slot />
 </template>

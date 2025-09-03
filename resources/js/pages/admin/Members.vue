@@ -4,13 +4,17 @@
 import { Head, useForm } from '@inertiajs/vue3';
 import Table from '@/components/ui/table/Table.vue';
 import { defineProps, ref } from 'vue';
-import AppLayoutAdmin from '@/layouts/AppLayoutAdmin.vue';
+import AppLayout from '@/layouts/AppLayout.vue';
 import Dialog from '@/components/ui/simpleidalog/Dialog.vue';
+import Button from '@/components/ui/button/Button.vue';
+import InputError from '@/components/InputError.vue';
+import Input from '@/components/ui/input/Input.vue';
+import { Search } from 'lucide-vue-next';
 
 const props = defineProps(['users']); // non-admin members
 
 const breadcrumbs = [
-  { title: 'Members', href: '/' },
+  { title: 'Members', href: '/admin/members' },
 ];
 
 // dialog open state
@@ -29,7 +33,7 @@ const successMessage = ref('');
 
 // Submit handler
 function submitForm() {
-  form.post('/members/add-member', {
+  form.post('/admin/members/add-member', {
     onSuccess: (page) => {
       successMessage.value = 'Member added successfully!';
       form.reset(); 
@@ -45,17 +49,23 @@ function submitForm() {
 <template>
   <Head title="Members" />
 
-  <AppLayoutAdmin :breadcrumbs="breadcrumbs">
+  <AppLayout :breadcrumbs="breadcrumbs">
     <div class="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
 
       <!-- Open Dialog Button -->
-      <button
-        @click="isDialogOpen = true"
-        class="self-start bg-black text-white rounded-lg px-4 py-2"
-      >
-        + Add Member
-      </button>
-
+      <div class="border-b-2 flex flex-row justify-between py-1.5 items-center gap-2 ">
+        <div class="flex flex-row">
+          <Input
+            class="w-[70%] focus:w-[90%] transition-all duration-300 ease-in-out rounded-r-none"
+          />
+          <Button class="rounded-l-none" variant="outline"><Search /></Button>
+        </div>
+        <Button
+          @click="isDialogOpen = true"
+        >
+          + Add
+        </Button>
+      </div>
       <!-- Success message -->
       <p v-if="successMessage" class="text-green-600">{{ successMessage }}</p>
 
@@ -72,44 +82,42 @@ function submitForm() {
         <!-- Body slot -->
         <template #body>
           <form @submit.prevent="submitForm" class="flex flex-col gap-2">
-            <input v-model="form.name" placeholder="Name" class="border p-2 rounded" />
-            <span v-if="form.errors.name" class="text-red-500">{{ form.errors.name }}</span>
+            <Input v-model="form.name" placeholder="Name" />
+            <InputError :message="form.errors.name" class="text-red-500" />
 
-            <input v-model="form.email" placeholder="Email" class="border p-2 rounded" />
-            <span v-if="form.errors.email" class="text-red-500">{{ form.errors.email }}</span>
+            <Input v-model="form.email" placeholder="Email" />
+            <InputError :message="form.errors.email" class="text-red-500" />
 
-            <select v-model="form.role" class="border p-2 rounded">
+            <select v-model="form.role">
               <option value="user">User</option>
               <option value="manager">Manager</option>
             </select>
-            <span v-if="form.errors.role" class="text-red-500">{{ form.errors.role }}</span>
+            <InputError :message="form.errors.role" class="text-red-500" />
 
-            <input type="password" v-model="form.password" placeholder="Password" class="border p-2 rounded" />
-            <span v-if="form.errors.password" class="text-red-500">{{ form.errors.password }}</span>
+            <Input type="password" v-model="form.password" placeholder="Password" />
+            <InputError :message="form.errors.password" class="text-red-500" />
 
-            <input type="password" v-model="form.password_confirmation" placeholder="Confirm Password" class="border p-2 rounded" />
-            <span v-if="form.errors.password_confirmation" class="text-red-500">{{ form.errors.password_confirmation }}</span>
+            <Input type="password" v-model="form.password_confirmation" placeholder="Confirm Password" />
+            <InputError :message="form.errors.password_confirmation" class="text-red-500" />
           </form>
         </template>
 
         <!-- Footer slot -->
         <template #footer>
-          <button
+          <Button
             @click="isDialogOpen = false"
-            type="button"
-            class="rounded-lg px-4 py-2 bg-gray-200"
+            type="Button"
           >
             Cancel
-          </button>
-          <button
+          </Button>
+          <Button
             @click="submitForm"
-            type="button"
-            class="rounded-lg px-4 py-2 bg-black text-white"
+            type="Button"
           >
             Save
-          </button>
+          </Button>
         </template>
       </Dialog>
     </div>
-  </AppLayoutAdmin>
+  </AppLayout>
 </template>
