@@ -7,6 +7,11 @@ const props = defineProps({
     required: true,
     default: () => [],
   },
+  tableTitle: {
+    type: String,
+    required: true,
+    default: "Data"
+  },
 });
 
 // Utility function: snake_case → Title Case
@@ -38,7 +43,19 @@ function selectRow(index) {
 
 <template>
   <div class="overflow-hidden rounded-lg shadow-sm">
-    <table class="min-w-full border-separate border-spacing-0">
+    <!-- Fallback: No data -->
+    <div
+      v-if="!rows || rows.length === 0"
+      class="p-6 text-center text-gray-600 dark:text-gray-300"
+    >
+      No {{ tableTitle }} Yet!
+    </div>
+
+    <!-- Table -->
+    <table
+      v-else
+      class="min-w-full border-separate border-spacing-0"
+    >
       <!-- Table Head -->
       <thead class="bg-gray-50 dark:bg-gray-900">
         <tr>

@@ -82,7 +82,7 @@ async function search() {
       <p v-if="successMessage" class="text-green-600">{{ successMessage }}</p>
 
       <!-- Table -->
-      <Table :rows="filteredUsers"></Table>
+      <Table :rows="filteredUsers" table-title="Members"></Table>
 
       <!-- Dialog -->
       <Dialog v-model="isDialogOpen">
