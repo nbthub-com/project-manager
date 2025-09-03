@@ -1,4 +1,6 @@
-<script setup>
+<!-- Admin -->
+
+<script setup lang="js">
 import { Head, useForm } from "@inertiajs/vue3";
 import Table from "@/components/ui/table/Table.vue";
 import { defineProps, ref } from "vue";

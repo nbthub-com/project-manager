@@ -1,6 +1,6 @@
 <!-- Admin -->
 
-<script setup>
+<script setup lang="js">
 import { Head } from '@inertiajs/vue3';
 import PlaceholderPattern from '@/components/PlaceholderPattern.vue';
 import { defineProps } from 'vue';
