@@ -1,41 +1,97 @@
-<!-- Admin -->
-
+<!-- Admin Dashboard -->
 <script setup lang="js">
 import { Head } from '@inertiajs/vue3';
-import PlaceholderPattern from '@/components/PlaceholderPattern.vue';
 import { defineProps } from 'vue';
 import AppLayout from '@/layouts/AppLayout.vue';
+import PlaceholderPattern from '@/components/PlaceholderPattern.vue';
+import { Users, UserCog, ClipboardList, CheckCircle2 } from 'lucide-vue-next';
 
-const breadcrumbs= [
-    {
-        title: 'Dashboard',
-        href: '/admin',
-    },
+const breadcrumbs = [
+  { title: 'Dashboard', href: '/admin' },
 ];
 
-const props = defineProps(['stats'])
-
+const props = defineProps(['stats']);
 </script>
 
 <template>
-    <Head title="Dashboard" />
-    <AppLayout :breadcrumbs="breadcrumbs">
-        <div class="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
-            <div class="grid auto-rows-min gap-4 md:grid-cols-2">
-                <div class="relative p-3 aspect-video overflow-hidden rounded-xl border border-sidebar-border/70 dark:border-sidebar-border">
-                    <PlaceholderPattern />
-                    <h1>Total Users</h1>
-                    <h2>{{ props.stats.user_count }}</h2>
-                </div>
-                <div class="relative p-3 aspect-video overflow-hidden rounded-xl border border-sidebar-border/70 dark:border-sidebar-border">
-                    <PlaceholderPattern />
-                    <h1>Total Managers</h1>
-                    <h2>{{ props.stats.manager_count }}</h2>
-                </div>
-            </div>
-            <div class="relative min-h-[100vh] flex-1 rounded-xl border border-sidebar-border/70 md:min-h-min dark:border-sidebar-border">
-                <PlaceholderPattern />
-            </div>
+  <Head title="Admin Dashboard" />
+  <AppLayout :breadcrumbs="breadcrumbs">
+    <div class="flex flex-col gap-6 p-4">
+      <!-- Top Stats Grid -->
+      <div class="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+        <!-- Users -->
+        <div
+          class="relative overflow-hidden rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-5 shadow-sm"
+        >
+          <div class="absolute right-3 top-3 opacity-10">
+            <Users class="h-12 w-12" />
+          </div>
+          <h2 class="text-sm font-medium text-gray-500 dark:text-gray-400">
+            Total Users
+          </h2>
+          <p class="text-3xl font-bold text-gray-900 dark:text-white">
+            {{ props.stats.user_count }}
+          </p>
         </div>
-    </AppLayout>
+
+        <!-- Managers -->
+        <div
+          class="relative overflow-hidden rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-5 shadow-sm"
+        >
+          <div class="absolute right-3 top-3 opacity-10">
+            <UserCog class="h-12 w-12" />
+          </div>
+          <h2 class="text-sm font-medium text-gray-500 dark:text-gray-400">
+            Total Managers
+          </h2>
+          <p class="text-3xl font-bold text-gray-900 dark:text-white">
+            {{ props.stats.manager_count }}
+          </p>
+        </div>
+
+        <!-- Projects -->
+        <div
+          class="relative overflow-hidden rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-5 shadow-sm"
+        >
+          <div class="absolute right-3 top-3 opacity-10">
+            <ClipboardList class="h-12 w-12" />
+          </div>
+          <h2 class="text-sm font-medium text-gray-500 dark:text-gray-400">
+            Active Projects
+          </h2>
+          <p class="text-3xl font-bold text-gray-900 dark:text-white">
+            {{ props.stats.project_count ?? 0 }}
+          </p>
+        </div>
+
+        <!-- Completed Tasks -->
+        <div
+          class="relative overflow-hidden rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-5 shadow-sm"
+        >
+          <div class="absolute right-3 top-3 opacity-10">
+            <CheckCircle2 class="h-12 w-12" />
+          </div>
+          <h2 class="text-sm font-medium text-gray-500 dark:text-gray-400">
+            Completed Tasks
+          </h2>
+          <p class="text-3xl font-bold text-gray-900 dark:text-white">
+            {{ props.stats.completed_tasks ?? 0 }}
+          </p>
+        </div>
+      </div>
+
+      <!-- Lower Section -->
+      <div
+        class="relative min-h-[50vh] rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-sm p-6"
+      >
+        <PlaceholderPattern />
+        <h2 class="mb-4 text-lg font-semibold text-gray-800 dark:text-gray-100">
+          Recent Activity
+        </h2>
+        <p class="text-gray-600 dark:text-gray-400">
+          (Here you can later show logs, recent tasks, or system activity.)
+        </p>
+      </div>
+    </div>
+  </AppLayout>
 </template>

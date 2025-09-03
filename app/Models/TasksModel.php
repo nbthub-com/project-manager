@@ -10,5 +10,5 @@ class TasksModel extends Model
     protected $fillable = [
         'title', 'role_title', 'status',
         'description', 'assigned_id', 'project_id'
-    ]
+    ];
 }
