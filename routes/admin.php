@@ -11,4 +11,5 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->group(function () {
 
     // Form handlers
     Route::post('/members/add-member', [AdminController::class, 'add_mem']);
+    Route::get('/search/{query}', [AdminController::class, 'search'])->name('admin.search');
 });

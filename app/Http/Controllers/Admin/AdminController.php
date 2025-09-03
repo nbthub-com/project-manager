@@ -82,5 +82,17 @@ class AdminController extends Controller
     public function search($query)
     {
         $query = strtolower($query);
+        if(!$query){
+            return redirect()->route('members.view');
+        }
+        $users = User::where('role', '!=', 'admin')
+            ->where(function($q) use ($query) {
+                $q->whereRaw('LOWER(name) LIKE ?', ["%{$query}%"])
+                ->orWhereRaw('LOWER(email) LIKE ?', ["%{$query}%"]);
+            })
+            ->orderBy('id', 'desc')
+            ->get(['id', 'name', 'email', 'role']);
+
+        return response()->json($users);
     }
 }
