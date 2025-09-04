@@ -4,7 +4,7 @@ import { Head } from '@inertiajs/vue3';
 import { defineProps } from 'vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import PlaceholderPattern from '@/components/PlaceholderPattern.vue';
-import { Users, UserCog, ClipboardList, CheckCircle2 } from 'lucide-vue-next';
+import { Users, ClipboardList, CheckCircle2 } from 'lucide-vue-next';
 
 const breadcrumbs = [
   { title: 'Dashboard', href: '/admin' },

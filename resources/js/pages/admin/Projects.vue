@@ -95,8 +95,7 @@ function submitForm() {
         <InputError :message="form.errors.title" class="text-red-500" />
         <!-- Manager -->
         <Select v-model="form.manager" class="border rounded p-2 text-sm">
-          <option value="">Select Manager</option>
-          <option v-for="name in props.names" :key="name" :value="name">
+          <option class="bg-white text-black dark:bg-black dark:text-white" v-for="name in props.names" :key="name" :value="name">
             {{ name }}
           </option>
         </Select>

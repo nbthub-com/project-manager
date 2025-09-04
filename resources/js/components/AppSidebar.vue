@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/sidebar';
 import { type NavItem } from '@/types';
 import { Link, usePage } from '@inertiajs/vue3';
-import { BookOpen, LayoutGrid, Package, User as Person } from 'lucide-vue-next';
+import { BookOpen, LayoutGrid, Mail, Package, User as Person } from 'lucide-vue-next';
 import AppLogo from './AppLogo.vue';
 import { computed } from 'vue';
 
@@ -41,7 +41,12 @@ const mainNavItems = computed<NavItem[]>(() => {
       icon: Package,
     });
   }
-
+  items.push(    {
+      title: 'Mailbox',
+      href: '/mailbox',
+      icon: Mail,
+    },
+)
   return items;
 });
 
