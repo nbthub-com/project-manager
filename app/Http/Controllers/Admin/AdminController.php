@@ -14,12 +14,9 @@ class AdminController extends Controller
     {
         // Simply send all users and managers for dashboard display
         $users = User::where('role', 'user')->count();
-        $managers = User::where('role', 'manager')->count();
-
         return Inertia::render('admin/Dashboard', [
             'stats' => [
                 'user_count' => $users ?? 0,
-                'manager_count' => $managers ?? 0,
             ],
         ]);
     }
@@ -29,13 +26,12 @@ class AdminController extends Controller
         // Only send roles of manager and user
         $users = User::where('role', '!=', 'admin')
             ->orderBy('id', 'desc')
-            ->get(['id', 'name', 'email', 'role']); 
+            ->get(['id', 'name', 'email']); 
 
         return Inertia::render('admin/Members', [
             'users' => $users,
         ]);
     }
-
     public function add_mem(Request $request)
     {
         // Normalize values before validation
@@ -46,7 +42,7 @@ class AdminController extends Controller
         ]);
 
         // Validate with case-insensitive uniqueness
-        $request->validate([
+        $validated = $request->validate([
             'name' => [
                 'required',
                 'min:3',
@@ -65,19 +61,21 @@ class AdminController extends Controller
                     }
                 },
             ],
-            'role' => 'required|in:user,manager',
+            'role' => 'required|in:user',
             'password' => 'required|min:6',
         ]);
 
         // Create user
-        User::create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'role' => $request->role,
-            'password' => Hash::make($request->password),
+        $user = User::create([
+            'name' => $validated['name'],
+            'email' => $validated['email'],
+            'role' => $validated['role'],
+            'password' => Hash::make($validated['password']),
         ]);
 
-        return redirect()->route('members.view')->with('success', 'Member added successfully!');
+        return response()->json([
+            'user' => $user,
+        ], 201);
     }
     public function search($query)
     {

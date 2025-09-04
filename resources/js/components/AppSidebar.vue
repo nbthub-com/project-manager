@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/sidebar';
 import { type NavItem } from '@/types';
 import { Link, usePage } from '@inertiajs/vue3';
-import { BookOpen, LayoutGrid, User as Person, Projector } from 'lucide-vue-next';
+import { BookOpen, LayoutGrid, Package, User as Person } from 'lucide-vue-next';
 import AppLogo from './AppLogo.vue';
 import { computed } from 'vue';
 
@@ -38,7 +38,7 @@ const mainNavItems = computed<NavItem[]>(() => {
     items.push({
       title: 'Projects',
       href: '/admin/projects',
-      icon: Projector,
+      icon: Package,
     });
   }
 

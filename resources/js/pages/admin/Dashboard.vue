@@ -34,21 +34,6 @@ const props = defineProps(['stats']);
           </p>
         </div>
 
-        <!-- Managers -->
-        <div
-          class="relative overflow-hidden rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-5 shadow-sm"
-        >
-          <div class="absolute right-3 top-3 opacity-10">
-            <UserCog class="h-12 w-12" />
-          </div>
-          <h2 class="text-sm font-medium text-gray-500 dark:text-gray-400">
-            Total Managers
-          </h2>
-          <p class="text-3xl font-bold text-gray-900 dark:text-white">
-            {{ props.stats.manager_count }}
-          </p>
-        </div>
-
         <!-- Projects -->
         <div
           class="relative overflow-hidden rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-5 shadow-sm"

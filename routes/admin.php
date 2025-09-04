@@ -16,4 +16,5 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->group(function () {
 
     // Project
     Route::get('/projects', [ProjectsController::class, 'index'])->name('admin.projects');
+    Route::post('/projects/add', [ProjectsController::class, 'addProject'])->name('admin.addproj');
 });

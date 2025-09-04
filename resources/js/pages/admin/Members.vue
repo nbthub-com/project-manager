@@ -1,51 +1,57 @@
 <!-- Admin -->
 
 <script setup lang="js">
-import { Head, useForm } from "@inertiajs/vue3";
+import { Head } from "@inertiajs/vue3";
 import Table from "@/components/ui/table/Table.vue";
-import { defineProps, ref } from "vue";
+import { defineProps, ref, reactive } from "vue";
 import AppLayout from "@/layouts/AppLayout.vue";
 import Dialog from "@/components/ui/simpleidalog/Dialog.vue";
 import Button from "@/components/ui/button/Button.vue";
 import InputError from "@/components/InputError.vue";
 import Input from "@/components/ui/input/Input.vue";
 import { Search } from "lucide-vue-next";
-import axios from "axios"; // ✅ import axios
-import DropdownMenu from "@/components/ui/dropdown-menu/DropdownMenu.vue";
+import axios from "axios";
 import Select from "@/components/ui/select/select.vue";
 
-const props = defineProps(["users"]); // initial members from server
+const props = defineProps(["users"]);
 const s_query = ref("");
-const filteredUsers = ref([...props.users]); // reactive copy
+const filteredUsers = ref([...props.users]);
 
 const breadcrumbs = [{ title: "Members", href: "/admin/members" }];
 
 const isDialogOpen = ref(false);
-
-const form = useForm({
+const form = reactive({
   name: "",
   email: "",
-  role: "user",
   password: "",
   password_confirmation: "",
+  errors: {}, // store validation errors
 });
-
 const successMessage = ref("");
 
-function submitForm() {
-  form.post("/admin/members/add-member", {
-    onSuccess: () => {
-      successMessage.value = "Member added successfully!";
-      form.reset();
-      isDialogOpen.value = false;
-    },
-  });
+async function submitForm() {
+  try {
+    const res = await axios.post("/admin/members/add-member", {
+      name: form.name,
+      email: form.email,
+      role: 'user',
+      password: form.password,
+      password_confirmation: form.password_confirmation,
+    });
+    window.location.href = '/admin/members'
+  } catch (error) {
+    if (error.response?.status === 422) {
+      // Laravel validation error
+      form.errors = error.response.data.errors;
+    } else {
+      console.error(error);
+    }
+  }
 }
 
-// ✅ JSON search handler
 async function search() {
   if (!s_query.value) {
-    filteredUsers.value = [...props.users]; // reset if empty
+    filteredUsers.value = [...props.users];
     return;
   }
 
@@ -82,7 +88,11 @@ async function search() {
       <p v-if="successMessage" class="text-green-600">{{ successMessage }}</p>
 
       <!-- Table -->
-      <Table :rows="filteredUsers" table-title="Members"></Table>
+      <Table
+        :rows="filteredUsers"
+        table-title="Members"
+        :headers="['id', 'name', 'email']"
+      />
 
       <!-- Dialog -->
       <Dialog v-model="isDialogOpen">
@@ -95,17 +105,13 @@ async function search() {
           <form @submit.prevent="submitForm" class="flex flex-col gap-2">
             <Input v-model="form.name" placeholder="Name" />
             <InputError :message="form.errors.name" class="text-red-500" />
+
             <Input v-model="form.email" placeholder="Email" />
             <InputError :message="form.errors.email" class="text-red-500" />
-            <Select
-              v-model="form.role"
-            >
-              <option value="user">User</option>
-              <option value="manager">Manager</option>
-            </Select>
-            <InputError :message="form.errors.role" class="text-red-500" />
+
             <Input type="password" v-model="form.password" placeholder="Password" />
             <InputError :message="form.errors.password" class="text-red-500" />
+
             <Input
               type="password"
               v-model="form.password_confirmation"
@@ -115,6 +121,7 @@ async function search() {
               :message="form.errors.password_confirmation"
               class="text-red-500"
             />
+            
           </form>
         </template>
         <!-- Footer slot -->
