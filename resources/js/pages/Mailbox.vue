@@ -16,6 +16,10 @@ import axios from 'axios';
 
 const breadcrumbs = [{ title: "Mailbox", href: "/mailbox" }];
 const props = defineProps(['inbox', 'outbox', 'currentUserId', 'names']);
+
+const inbox = ref([...props.inbox]); // Copy inbox values
+const outbox = ref([...props.outbox]) // Copy as inbox
+
 const tab = ref(0);
 // Dialog states
 const showDialog = ref(false);
@@ -91,9 +95,24 @@ const colors = {
   normal: 'bg-gray-50 dark:bg-gray-900',
   urgent: 'bg-yellow-100 dark:bg-yellow-800'
 };
+
 function refresh(){
   window.location.href = location.href
 }
+
+async function deleteMessage(id) {
+  if (!confirm('Are you sure to delete this message? This cannot be undone!')) return
+  try {
+    const response = await axios.delete(`/mailbox/delete/${id}`);
+    if (response.status === 200) {
+      inbox.value = inbox.value.filter(m => m.id !== id);
+      outbox.value = outbox.value.filter(m => m.id !== id);
+    }
+  } catch (error) {
+    console.error("Failed to delete message:", error);
+  }
+}
+
 </script>
 
 <template>
@@ -150,7 +169,7 @@ function refresh(){
       <!-- Message List -->
       <div class="space-y-1">
         <div
-          v-for="item in tab === 0 ? props.inbox : props.outbox"
+          v-for="item in tab === 0 ? inbox : outbox"
           :key="item.id"
           class="flex flex-col sm:flex-row sm:justify-between items-start sm:items-center border rounded-lg p-2 transition-all duration-200 cursor-pointer hover:shadow-md hover:bg-gray-50 dark:hover:bg-gray-700 w-full"
           :class="{ 'bg-gray-100 dark:bg-gray-800': !item.is_read }"
@@ -217,7 +236,7 @@ function refresh(){
               v-if="tab === 1"
               ><Edit
             /></Button>
-            <Button size="sm" variant="ghost" v-if="tab === 1"><Delete /></Button>
+            <Button size="sm" variant="ghost" v-if="tab === 1" @click="deleteMessage(item.id)"><Delete /></Button>
           </div>
         </div>
       </div>
