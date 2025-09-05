@@ -3,22 +3,27 @@ import Button from "@/components/ui/button/Button.vue";
 import AppLayout from "@/layouts/AppLayout.vue";
 import { router, useForm } from "@inertiajs/vue3";
 import {Head} from "@inertiajs/vue3";
-import { Circle, CircleX, Delete, Edit, Eye, FileCheck, FileWarning, Info, Plus, RefreshCwIcon, Star } from "lucide-vue-next";
-import { defineProps, ref } from "vue";
+import { Circle, CircleX, Delete, Edit, Eye, FileCheck, FileWarning, Info, LucideInbox, Plus, RefreshCwIcon, Star } from "lucide-vue-next";
+import { defineProps, ref, watch } from "vue"; // Added watch import
 import Dialog from "@/components/ui/simpleidalog/Dialog.vue";
 import { cn } from "@/lib/utils";
 import Select from "@/components/ui/select/select.vue";
 import InputError from "@/components/InputError.vue";
 import Input from "@/components/ui/input/Input.vue";
-
-// Using axios as i can get response with it
 import axios from 'axios';
 
-const breadcrumbs = [{ title: "Mailbox", href: "/mailbox" }];
 const props = defineProps(['inbox', 'outbox', 'currentUserId', 'names']);
-
 const inbox = ref([...props.inbox]); // Copy inbox values
 const outbox = ref([...props.outbox]) // Copy as inbox
+
+// NEW: Watch for prop changes and update local copies
+watch(() => props.inbox, (newInbox) => {
+  inbox.value = [...newInbox];
+}, { deep: true });
+
+watch(() => props.outbox, (newOutbox) => {
+  outbox.value = [...newOutbox];
+}, { deep: true });
 
 const tab = ref(0);
 // Dialog states
@@ -28,6 +33,12 @@ const editDialog = ref(false);
 // Message data
 const selectedMessage = ref(null);
 const editingMessage = ref(null);
+
+const breadcrumbs = [{
+  'title' : 'MailBox',
+  'href'  : '/mailbox'
+}]
+
 // New message form
 const form = useForm({
   to_user: "",
@@ -46,16 +57,26 @@ const editForm = useForm({
   scope: "local",
   is_starred: false,
 });
+
 // Send new message
 function submitMessage() {
   form.post("/mailbox/send", {
     preserveScroll: true,
-    onSuccess: () => {
+    onSuccess: (page) => {
       showDialog.value = false;
       form.reset();
+      
+      // NEW: Update local copies with the new data from the server
+      if (page.props.inbox) {
+        inbox.value = [...page.props.inbox];
+      }
+      if (page.props.outbox) {
+        outbox.value = [...page.props.outbox];
+      }
     },
   });
 }
+
 // Open message dialog
 async function openMessage(item, in_='inbox') {
   selectedMessage.value = item;
@@ -67,11 +88,12 @@ async function openMessage(item, in_='inbox') {
     }
   }
 }
+
 // Open edit dialog
 function openEditDialog(item) {
   editingMessage.value = item;
   editForm.id = item.id;
-  editForm.to_user = item.to_user;
+  editForm.to_user = item.to_user_name || '';
   editForm.subject = item.subject;
   editForm.content = item.content;
   editForm.type = item.type;
@@ -79,16 +101,38 @@ function openEditDialog(item) {
   editForm.is_starred = item.is_starred;
   editDialog.value = true;
 }
+
 // Update message
 function updateMessage() {
   editForm.put(`/mailbox/update/${editForm.id}`, {
     preserveScroll: true,
-    onSuccess: () => {
+    onSuccess: (page) => {
       editDialog.value = false;
       editForm.reset();
+      
+      // NEW: Update local copies with the new data from the server
+      if (page.props.inbox) {
+        inbox.value = [...page.props.inbox];
+      }
+      if (page.props.outbox) {
+        outbox.value = [...page.props.outbox];
+      }
     },
   });
 }
+
+// Toggle star status
+async function toggleStar(item) {
+  try {
+    const response = await axios.patch(`/mailbox/update/star/${item.id}`);
+    if (response.status === 200) {
+      item.is_starred = response.data.status;
+    }
+  } catch (error) {
+    console.error("Failed to star/unstar message:", error);
+  }
+}
+
 const colors = {
   positive: 'bg-green-100 dark:bg-green-800',
   negative: 'bg-red-100 dark:bg-red-800',
@@ -96,8 +140,11 @@ const colors = {
   urgent: 'bg-yellow-100 dark:bg-yellow-800'
 };
 
+const disabled = ref(false)
+
 function refresh(){
   window.location.href = location.href
+  disabled.value = true
 }
 
 async function deleteMessage(id) {
@@ -105,6 +152,7 @@ async function deleteMessage(id) {
   try {
     const response = await axios.delete(`/mailbox/delete/${id}`);
     if (response.status === 200) {
+      // Remove from local arrays
       inbox.value = inbox.value.filter(m => m.id !== id);
       outbox.value = outbox.value.filter(m => m.id !== id);
     }
@@ -112,10 +160,10 @@ async function deleteMessage(id) {
     console.error("Failed to delete message:", error);
   }
 }
-
 </script>
 
 <template>
+  <!-- Template remains the same as before, just ensure you removed type="text" from Select components -->
   <Head title="Mailbox" />
   <AppLayout :breadcrumbs="breadcrumbs">
     <div class="p-4 space-y-4">
@@ -136,7 +184,6 @@ async function deleteMessage(id) {
           >
             Inbox
           </Button>
-
           <!-- Outbox -->
           <Button
             @click="tab = 1"
@@ -160,14 +207,19 @@ async function deleteMessage(id) {
           >
             <Plus /> New
           </Button>
-          <Button @click="refresh()" class="flex items-center gap-1">
+          <Button @click="refresh()" :disabled="disabled" class="flex items-center gap-1">
             <RefreshCwIcon /> Refresh
           </Button>
         </div>
       </div>
-
       <!-- Message List -->
-      <div class="space-y-1">
+      <div v-if="!inbox" class="w-full h-full items-center justify-center ">
+        <LucideInbox /> Your inbox is empty!
+      </div>
+      <div v-else-if="!outbox" class="w-full h-full items-center justify-center ">
+        <LucideInbox /> You have not sent any message!
+      </div>
+      <div v-else class="space-y-1">
         <div
           v-for="item in tab === 0 ? inbox : outbox"
           :key="item.id"
@@ -183,10 +235,10 @@ async function deleteMessage(id) {
                 item.type === 'positive'
                   ? FileCheck
                   : item.type === 'negative'
-                  ? CircleX
-                  : item.type === 'urgent'
-                  ? FileWarning
-                  : Info
+                    ? CircleX
+                    : item.type === 'urgent'
+                      ? FileWarning
+                      : Info
               "
               :class="{
                 'stroke-green-600': item.type === 'positive',
@@ -213,12 +265,21 @@ async function deleteMessage(id) {
               new Date(item.created_at).toLocaleString()
             }}</span>
           </div>
-
           <!-- Action Buttons -->
           <div class="mt-2 sm:mt-0 flex flex-row gap-2 items-center">
-            <div v-if="item.is_starred">
-              <Star size="18" fill="gold" />
-            </div>
+            <!-- Star button with toggle functionality -->
+            <Button 
+              size="sm" 
+              variant="ghost" 
+              @click="toggleStar(item)"
+              title="Star/Unstar"
+            >
+              <Star 
+                size="18" 
+                :fill="item.is_starred ? 'gold' : 'none'"
+                :class="{ 'text-yellow-500': item.is_starred }"
+              />
+            </Button>
             <Circle
               size="18"
               :class="cn('', ['fill-green-500', 'fill-transparent'][1 - item.is_read])"
@@ -241,7 +302,6 @@ async function deleteMessage(id) {
         </div>
       </div>
     </div>
-
     <!-- New Message Dialog -->
     <Dialog v-model="showDialog">
       <template #header>
@@ -251,9 +311,9 @@ async function deleteMessage(id) {
         <div class="space-y-2">
           <label class="block">
             <span>Recipient</span>
+            <!-- Fixed: Removed type="text" attribute -->
             <Select
               v-model="form.to_user"
-              type="number"
               class="border rounded w-full p-1"
             >
               <option
@@ -334,7 +394,6 @@ async function deleteMessage(id) {
         </div>
       </template>
     </Dialog>
-
     <!-- Read Message Dialog -->
     <Dialog v-model="readDialog">
       <template #header>
@@ -353,10 +412,10 @@ async function deleteMessage(id) {
                   selectedMessage.type === 'positive'
                     ? FileCheck
                     : selectedMessage.type === 'negative'
-                    ? CircleX
-                    : selectedMessage.type === 'urgent'
-                    ? FileWarning
-                    : Info
+                      ? CircleX
+                      : selectedMessage.type === 'urgent'
+                        ? FileWarning
+                        : Info
                 "
                 :class="{
                   'stroke-green-600': selectedMessage.type === 'positive',
@@ -384,7 +443,6 @@ async function deleteMessage(id) {
         </div>
       </template>
     </Dialog>
-
     <!-- Edit Message Dialog -->
     <Dialog v-model="editDialog">
       <template #header>
@@ -393,13 +451,22 @@ async function deleteMessage(id) {
       <template #body>
         <div class="space-y-2">
           <label class="block">
-            <span>Recipient (User ID)</span>
-            <Input
+            <span>Recipient</span>
+            <!-- Fixed: Removed type="text" attribute -->
+            <Select
               v-model="editForm.to_user"
-              type="number"
               class="border rounded w-full p-1"
               :disabled="editForm.scope === 'global'"
-            />
+            >
+              <option
+                v-for="(item, index) in props.names"
+                :key="index"
+                :value="item"
+                class="bg-white text-black dark:bg-black dark:text-white"
+              >
+                {{ item.toUpperCase() }}
+              </option>
+            </Select>
             <InputError :message="editForm.errors.to_user" />
           </label>
           <label class="block">

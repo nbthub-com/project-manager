@@ -110,39 +110,38 @@ class MailboxController extends Controller
     public function update(Request $request, $id)
     {
         $user = auth()->user();
-
         // Find the message
         $message = MailboxModel::findOrFail($id);
-
         // Check if user owns the message
         if ($message->from_user_id !== $user->id) {
             return back()->withErrors(['message' => 'You are not authorized to edit this message']);
         }
-
         // Validate input
         $validator = Validator::make($request->all(), [
-            'to_user_id' => 'nullable|exists:users,id',
+            'to_user' => 'nullable|exists:users,name',
             'subject' => 'nullable|string|max:255',
             'content' => 'nullable|string',
             'type' => 'sometimes|in:normal,urgent,positive,negative',
             'scope' => 'nullable|in:local,global',
             'is_starred' => 'nullable|boolean'
         ]);
-
         if ($validator->fails()) {
             return back()->withErrors($validator)->withInput();
         }
-
+        
         $data = $request->only([
-            'to_user_id', 'subject', 'content', 'type', 'scope', 'is_starred'
+            'subject', 'content', 'type', 'scope', 'is_starred'
         ]);
-
-        if (isset($data['scope']) && $data['scope'] === 'global') {
+        
+        // Handle to_user separately
+        if ($request->has('to_user') && $request->input('scope') !== 'global') {
+            $toUser = User::where('name', $request->input('to_user'))->first();
+            $data['to_user_id'] = optional($toUser)->id;
+        } else if ($request->input('scope') === 'global') {
             $data['to_user_id'] = null;
         }
-
+        
         $message->update($data);
-
         return redirect()->back()->with('success', 'Message updated successfully!');
     }
     public function setToRead($id)

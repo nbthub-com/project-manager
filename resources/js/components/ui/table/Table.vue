@@ -1,5 +1,5 @@
 <script setup>
-import { defineProps, computed, ref } from "vue";
+import { defineProps, computed } from "vue";
 
 const props = defineProps({
   rows: {
@@ -17,6 +17,11 @@ const props = defineProps({
     required: false,
     default: null,
   },
+  toHide: {
+    type: Array,
+    required: false,
+    default: () => [],
+  },
 });
 
 // Utility: snake_case → Title Case
@@ -30,22 +35,22 @@ function toTitleCase(str) {
 
 // Final headers: use provided headers OR infer from first row
 const resolvedHeaders = computed(() => {
+  let baseHeaders = [];
   if (props.headers && props.headers.length > 0) {
-    return props.headers.map((h) =>
+    baseHeaders = props.headers.map((h) =>
       typeof h === "string"
         ? { key: h, label: toTitleCase(h) }
         : { key: h.key, label: h.label ?? toTitleCase(h.key) }
     );
-  }
-
-  if (props.rows && props.rows.length > 0) {
-    return Object.keys(props.rows[0]).map((key) => ({
+  } else if (props.rows && props.rows.length > 0) {
+    baseHeaders = Object.keys(props.rows[0]).map((key) => ({
       key,
       label: toTitleCase(key),
     }));
   }
 
-  return [];
+  // remove hidden columns
+  return baseHeaders.filter(h => !props.toHide.includes(h.key));
 });
 </script>
 
@@ -71,21 +76,27 @@ const resolvedHeaders = computed(() => {
           >
             {{ header.label }}
           </th>
+          <!-- Actions column -->
+          <th class="px-4 py-3 text-left text-sm font-semibold text-white bg-black">
+            Actions
+          </th>
         </tr>
       </thead>
 
       <!-- Table Body -->
       <tbody>
-        <tr
-          v-for="(row, index) in rows"
-          :key="index"
-        >
+        <tr v-for="(row, index) in rows" :key="index">
           <td
             v-for="header in resolvedHeaders"
             :key="header.key"
             class="px-4 py-3 text-sm border-t border-black dark:border-white"
           >
             {{ row[header.key] }}
+          </td>
+
+          <!-- Actions slot -->
+          <td class="px-4 py-3 text-sm border-t border-black dark:border-white">
+            <slot name="actions" :row="row" :index="index" />
           </td>
         </tr>
       </tbody>
