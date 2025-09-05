@@ -17,7 +17,7 @@ return new class extends Migration
             // Task fields
             $table->string('title');
             $table->string('role_title')->nullable(); // e.g. "Frontend Dev", "Intern"
-            $table->enum('status', ['pending', 'in_progress', 'completed'])->default('pending');
+            $table->enum('status', ['pending', 'in_progress', 'completed', 'cancelled'])->default('pending');
             $table->text('description')->nullable();
 
             // Foreign keys

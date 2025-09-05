@@ -92,6 +92,7 @@ async function search() {
         :rows="filteredUsers"
         table-title="Members"
         :headers="['id', 'name', 'email']"
+        :action="false"
       />
 
       <!-- Dialog -->

@@ -22,6 +22,11 @@ const props = defineProps({
     required: false,
     default: () => [],
   },
+  action: {
+    type: Boolean,
+    required: false,
+    default: true
+  }
 });
 
 // Utility: snake_case → Title Case
@@ -77,7 +82,7 @@ const resolvedHeaders = computed(() => {
             {{ header.label }}
           </th>
           <!-- Actions column -->
-          <th class="px-4 py-3 text-left text-sm font-semibold text-white bg-black">
+          <th v-if="props.action" class="px-4 py-3 text-left text-sm font-semibold text-white bg-black">
             Actions
           </th>
         </tr>
