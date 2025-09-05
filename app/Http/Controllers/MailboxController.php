@@ -92,11 +92,11 @@ class MailboxController extends Controller
         if ($validator->fails()) {
             return back()->withErrors($validator)->withInput();
         }
-        $to_id = User::where('name', $request->input('to_user'))->get();
-        // Create message
-        $message = MailboxModel::create([
+        $toUser = User::where('name', $request->input('to_user'))->first();
+
+        MailboxModel::create([
             'from_user_id' => $user->id,
-            'to_user_id' => $request->input('scope') === 'global' ? null : $to_id,
+            'to_user_id' => $request->input('scope') === 'global' ? null : optional($toUser)->id,
             'subject' => $request->input('subject'),
             'content' => $request->input('content'),
             'type' => $request->input('type'),
@@ -145,7 +145,62 @@ class MailboxController extends Controller
 
         return redirect()->back()->with('success', 'Message updated successfully!');
     }
-    public function update_view_or_star($request){
-        // TODO: ...
+    public function setToRead($id)
+    {
+        $user = auth()->user();
+        $message = MailboxModel::findOrFail($id);
+        if ($message->from_user_id !== $user->id && 
+            $message->to_user_id !== $user->id && 
+            $message->scope !== 'global') {
+            return response()->json([
+                'status' => 0,
+                'message' => 'Unauthorized to mark this message as read.'
+            ], 403);
+        }
+        $message->is_read = true;
+        $message->save();
+        return response()->json([
+            'status' => (int) $message->is_read
+        ], 200);
+    }
+    public function starOrUnStar($id)
+    {
+        $user = auth()->user();
+        $message = MailboxModel::findOrFail($id);
+        if ($message->from_user_id !== $user->id && 
+            $message->to_user_id !== $user->id && 
+            $message->scope !== 'global') {
+            return response()->json([
+                'status' => 0,
+                'message' => 'Unauthorized to star/unstar this message.'
+            ], 403);
+        }
+        $message->is_starred = !$message->is_starred;
+        $message->save();
+        return response()->json([
+            'status' => (int) $message->is_starred
+        ], 200);
+    }
+    public function destroy($id)
+    {
+        $user = auth()->user();
+
+        // Find message
+        $message = MailboxModel::findOrFail($id);
+
+        // Allow delete only if sender is current user
+        if ($message->from_user_id !== $user->id) {
+            return response()->json([
+                'status' => 0,
+                'message' => 'Unauthorized: You can only delete messages you sent.'
+            ], 403);
+        }
+
+        $message->delete();
+
+        return response()->json([
+            'status' => 1,
+            'message' => 'Message deleted successfully.'
+        ], 200);
     }
 }

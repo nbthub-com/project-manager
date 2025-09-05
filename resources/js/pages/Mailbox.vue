@@ -1,15 +1,18 @@
 <script setup lang="js">
 import Button from "@/components/ui/button/Button.vue";
 import AppLayout from "@/layouts/AppLayout.vue";
-import { useForm } from "@inertiajs/vue3";
+import { router, useForm } from "@inertiajs/vue3";
 import {Head} from "@inertiajs/vue3";
-import { Circle, CircleX, Delete, Edit, Eye, FileCheck, FileWarning, Info, Plus, Star } from "lucide-vue-next";
+import { Circle, CircleX, Delete, Edit, Eye, FileCheck, FileWarning, Info, Plus, RefreshCwIcon, Star } from "lucide-vue-next";
 import { defineProps, ref } from "vue";
 import Dialog from "@/components/ui/simpleidalog/Dialog.vue";
 import { cn } from "@/lib/utils";
 import Select from "@/components/ui/select/select.vue";
 import InputError from "@/components/InputError.vue";
 import Input from "@/components/ui/input/Input.vue";
+
+// Using axios as i can get response with it
+import axios from 'axios';
 
 const breadcrumbs = [{ title: "Mailbox", href: "/mailbox" }];
 const props = defineProps(['inbox', 'outbox', 'currentUserId', 'names']);
@@ -23,7 +26,7 @@ const selectedMessage = ref(null);
 const editingMessage = ref(null);
 // New message form
 const form = useForm({
-  to_user_id: "",
+  to_user: "",
   subject: "",
   content: "",
   type: "normal",
@@ -32,7 +35,7 @@ const form = useForm({
 // Edit message form
 const editForm = useForm({
   id: "",
-  to_user_id: "",
+  to_user: "",
   subject: "",
   content: "",
   type: "normal",
@@ -50,15 +53,21 @@ function submitMessage() {
   });
 }
 // Open message dialog
-function openMessage(item) {
+async function openMessage(item, in_='inbox') {
   selectedMessage.value = item;
   readDialog.value = true;
+  if(in_ === 'inbox'){
+    const response = await axios.patch(`/mailbox/update/read/${item.id}`)
+    if(response.status === 200){
+      item.is_read = response.data.status
+    }
+  }
 }
 // Open edit dialog
 function openEditDialog(item) {
   editingMessage.value = item;
   editForm.id = item.id;
-  editForm.to_user_id = item.to_user_id;
+  editForm.to_user = item.to_user;
   editForm.subject = item.subject;
   editForm.content = item.content;
   editForm.type = item.type;
@@ -82,6 +91,9 @@ const colors = {
   normal: 'bg-gray-50 dark:bg-gray-900',
   urgent: 'bg-yellow-100 dark:bg-yellow-800'
 };
+function refresh(){
+  window.location.href = location.href
+}
 </script>
 
 <template>
@@ -89,17 +101,17 @@ const colors = {
   <AppLayout :breadcrumbs="breadcrumbs">
     <div class="p-4 space-y-4">
       <!-- Tabs and New Message Button -->
-      <div class="flex justify-between mb-4">
+      <div class="flex justify-between mb-4 outline-1 p-1 rounded-lg items-center">
         <div class="flex flex-row">
           <!-- Inbox -->
           <Button
             @click="tab = 0"
             :class="
               cn(
-                'font-semibold rounded-r-none border',
-                tab === 1
-                  ? 'bg-gray-700 text-white border-gray-700'
-                  : 'bg-white dark:bg-black text-gray-700 dark:text-gray-200 border-gray-300'
+                'font-semibold rounded-r-none border border-black transition hover:bg-gray-800',
+                tab === 0
+                  ? 'bg-black text-white opacity-100 underline'
+                  : 'bg-black text-white opacity-50'
               )
             "
           >
@@ -111,23 +123,28 @@ const colors = {
             @click="tab = 1"
             :class="
               cn(
-                'font-semibold rounded-l-none border',
-                tab === 0
-                  ? 'bg-gray-700 text-white border-gray-700'
-                  : 'bg-white dark:bg-black text-gray-700 dark:text-gray-200 border-gray-300'
+                'font-semibold rounded-l-none border border-black transition hover:bg-gray-800',
+                tab === 1
+                  ? 'bg-black text-white opacity-100 underline'
+                  : 'bg-black text-white opacity-50'
               )
             "
           >
             Outbox
           </Button>
         </div>
-        <Button
-          v-if="tab === 1"
-          @click="showDialog = true"
-          class="flex items-center gap-1"
-        >
-          <Plus /> New
-        </Button>
+        <div class="flex flex-row gap-1">
+          <Button
+            v-if="tab === 1"
+            @click="showDialog = true"
+            class="flex items-center gap-1"
+          >
+            <Plus /> New
+          </Button>
+          <Button @click="refresh()" class="flex items-center gap-1">
+            <RefreshCwIcon /> Refresh
+          </Button>
+        </div>
       </div>
 
       <!-- Message List -->
@@ -187,8 +204,17 @@ const colors = {
               size="18"
               :class="cn('', ['fill-green-500', 'fill-transparent'][1 - item.is_read])"
             />
-            <Button size="sm" variant="ghost" @click="openMessage(item)"><Eye /></Button>
-            <Button size="sm" variant="ghost" @click="openEditDialog(item)"
+            <Button
+              size="sm"
+              variant="ghost"
+              @click="openMessage(item, ['inbox', 'outbox'][tab])"
+              ><Eye
+            /></Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              @click="openEditDialog(item)"
+              v-if="tab === 1"
               ><Edit
             /></Button>
             <Button size="sm" variant="ghost" v-if="tab === 1"><Delete /></Button>
@@ -207,7 +233,7 @@ const colors = {
           <label class="block">
             <span>Recipient</span>
             <Select
-              v-model="form.to_user_id"
+              v-model="form.to_user"
               type="number"
               class="border rounded w-full p-1"
             >
@@ -220,7 +246,7 @@ const colors = {
                 {{ item.toUpperCase() }}
               </option>
             </Select>
-            <InputError :message="form.errors.to_user_id" />
+            <InputError :message="form.errors.to_user" />
           </label>
           <label class="block">
             <span>Subject</span>
@@ -350,12 +376,12 @@ const colors = {
           <label class="block">
             <span>Recipient (User ID)</span>
             <Input
-              v-model="editForm.to_user_id"
+              v-model="editForm.to_user"
               type="number"
               class="border rounded w-full p-1"
               :disabled="editForm.scope === 'global'"
             />
-            <InputError :message="editForm.errors.to_user_id" />
+            <InputError :message="editForm.errors.to_user" />
           </label>
           <label class="block">
             <span>Subject</span>

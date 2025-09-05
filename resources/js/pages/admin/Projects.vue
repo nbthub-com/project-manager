@@ -67,7 +67,7 @@ function submitForm() {
   <AppLayout :breadcrumbs="breadcrumbs">
     <div class="flex flex-col gap-4 p-4">
       <!-- Search + Add -->
-      <div class="border-b-2 flex flex-row justify-between py-1.5 items-center gap-2">
+      <div class="border-b-2 flex flex-row justify-between outline-1 p-1 rounded-lg items-center gap-2 ">
         <div class="flex flex-row">
           <Input
             v-model="s_query"
