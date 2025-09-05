@@ -1,10 +1,11 @@
 <script setup lang="js">
 import Button from "@/components/ui/button/Button.vue";
 import AppLayout from "@/layouts/AppLayout.vue";
-import { router, useForm } from "@inertiajs/vue3";
+import { router, useForm, usePage } from "@inertiajs/vue3";
 import { Head } from "@inertiajs/vue3";
-import { Circle, CircleX, Delete, Edit, Eye, FileCheck, FileWarning, Info, LucideInbox, Plus, RefreshCwIcon, Star } from "lucide-vue-next";
-import { defineProps, ref, watch } from "vue";
+import { Circle, CircleX, Delete, Edit, Eye, FileCheck, FileWarning, Info, LucideInbox, Plus, RefreshCwIcon } from "lucide-vue-next";
+import { defineProps, ref, watch, computed } from "vue";
+// Fix: Check the correct path for Dialog component
 import Dialog from "@/components/ui/simpleidalog/Dialog.vue";
 import { cn } from "@/lib/utils";
 import Select from "@/components/ui/select/select.vue";
@@ -15,12 +16,12 @@ import axios from 'axios';
 const props = defineProps(['inbox', 'outbox', 'currentUserId', 'names']);
 const inbox = ref([...props.inbox]);
 const outbox = ref([...props.outbox]);
+const disabled = ref(false);
 
 // Watchers for prop changes
 watch(() => props.inbox, (newInbox) => {
   inbox.value = [...newInbox];
 }, { deep: true });
-
 watch(() => props.outbox, (newOutbox) => {
   outbox.value = [...newOutbox];
 }, { deep: true });
@@ -31,8 +32,11 @@ const readDialog = ref(false);
 const editDialog = ref(false);
 const selectedMessage = ref(null);
 const editingMessage = ref(null);
-
 const breadcrumbs = [{ title: 'MailBox', href: '/mailbox' }];
+
+// Get current user ID
+const page = usePage();
+const id = computed(() => page.props.auth.user.id);
 
 // New message form
 const form = useForm({
@@ -43,7 +47,7 @@ const form = useForm({
   scope: "local",
 });
 
-// Edit form (removed is_starred here)
+// Edit form with is_starred field
 const editForm = useForm({
   id: "",
   to_user: "",
@@ -66,20 +70,82 @@ function submitMessage() {
   });
 }
 
-// Toggle star (fixed for sestar/restar)
-async function toggleStar(item) {
-  try {
-    const response = await axios.patch(`/mailbox/update/star/${item.id}`);
-    if (response.status === 200) {
-      if (item.from_user_id === props.currentUserId) {
-        item.sestar = response.data.status;
-      } else if (item.to_user_id === props.currentUserId) {
-        item.restar = response.data.status;
-      }
+// Refresh messages
+function refresh() {
+  disabled.value = true;
+  router.reload({
+    preserveScroll: true,
+    onFinish: () => {
+      disabled.value = false;
+    },
+    onSuccess: (page) => {
+      if (page.props.inbox) inbox.value = [...page.props.inbox];
+      if (page.props.outbox) outbox.value = [...page.props.outbox];
     }
-  } catch (error) {
-    console.error("Failed to star/unstar message:", error);
+  });
+}
+
+// Open message dialog
+function openMessage(item, box) {
+  selectedMessage.value = item;
+  readDialog.value = true;
+  
+  // Mark as read when opened
+  if (item.is_read === 0 && box === 'inbox') { // Check for integer 0
+    axios.patch(`/mailbox/update/read/${item.id}`)
+      .then(response => {
+        if (response.status === 200) {
+          item.is_read = 1; // Set to integer 1
+        }
+      })
+      .catch(error => {
+        console.error("Failed to mark message as read:", error);
+      });
   }
+}
+
+// Open edit dialog
+function openEditDialog(item) {
+  editingMessage.value = item;
+  editForm.id = item.id;
+  editForm.to_user = item.to_display !== 'Global' ? item.to_display : '';
+  editForm.subject = item.subject;
+  editForm.content = item.content;
+  editForm.type = item.type;
+  editForm.scope = item.scope;
+  editDialog.value = true;
+}
+
+// Delete message
+function deleteMessage(id) {
+  if (confirm('Are you sure you want to delete this message?')) {
+    axios.delete(`/mailbox/delete/${id}`)
+      .then(response => {
+        if (response.status === 200) {
+          outbox.value = outbox.value.filter(msg => msg.id !== id);
+        }
+      })
+      .catch(error => {
+        console.error("Failed to delete message:", error);
+      });
+  }
+}
+
+// Update message
+function updateMessage() {
+  // Convert boolean to integer before sending
+  const formData = {
+    ...editForm.data(),
+  };
+  editForm.put(`/mailbox/update/${editForm.id}`, {
+    data: formData,
+    preserveScroll: true,
+    onSuccess: (page) => {
+      editDialog.value = false;
+      editForm.reset();
+      if (page.props.outbox) outbox.value = [...page.props.outbox];
+    }
+  });
 }
 </script>
 
@@ -140,7 +206,6 @@ async function toggleStar(item) {
         <LucideInbox class="w-10 h-10 mb-2" />
         <p>Your inbox is empty!</p>
       </div>
-
       <div
         v-else-if="tab === 1 && outbox.length === 0"
         class="flex flex-col items-center justify-center p-6 text-gray-500 dark:text-gray-400"
@@ -148,13 +213,12 @@ async function toggleStar(item) {
         <LucideInbox class="w-10 h-10 mb-2" />
         <p>You have not sent any messages!</p>
       </div>
-
       <div v-else class="space-y-1">
         <div
           v-for="item in tab === 0 ? inbox : outbox"
           :key="item.id"
           class="flex flex-col sm:flex-row sm:justify-between items-start sm:items-center border rounded-lg p-2 transition-all duration-200 cursor-pointer hover:shadow-md hover:bg-gray-50 dark:hover:bg-gray-700 w-full"
-          :class="{ 'bg-gray-100 dark:bg-gray-800': !item.is_read }"
+          :class="{ 'bg-gray-100 dark:bg-gray-800': item.is_read === 0 }"
         >
           <!-- Message Info with Type Icon -->
           <div
@@ -197,26 +261,6 @@ async function toggleStar(item) {
           </div>
           <!-- Action Buttons -->
           <div class="mt-2 sm:mt-0 flex flex-row gap-2 items-center">
-            <!-- Star button with toggle functionality -->
-            <Button
-              size="sm"
-              variant="ghost"
-              @click="toggleStar(item)"
-              title="Star/Unstar"
-            >
-              <Star
-                size="18"
-                :fill="
-                  (item.from_user_id === currentUserId ? item.sestar : item.restar)
-                    ? 'gold'
-                    : 'none'
-                "
-                :class="{
-                  'text-yellow-500':
-                    item.from_user_id === currentUserId ? item.sestar : item.restar,
-                }"
-              />
-            </Button>
             <Circle
               size="18"
               :class="cn('', ['fill-green-500', 'fill-transparent'][1 - item.is_read])"
@@ -473,10 +517,6 @@ async function toggleStar(item) {
               </option>
             </Select>
             <InputError :message="editForm.errors.scope" />
-          </label>
-          <label class="flex items-center space-x-2">
-            <input type="checkbox" v-model="editForm.is_starred" class="rounded" />
-            <span>Starred</span>
           </label>
         </div>
       </template>

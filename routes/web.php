@@ -15,7 +15,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // Using patch as we are just toggling...
     Route::patch('/mailbox/update/read/{id}', [MailboxController::class, 'setToRead']);
-    Route::patch('/mailbox/update/star/{id}', [MailboxController::class, 'starOrUnStar']);
 
     // Mailbox:: Outbox message delete route...
     Route::delete('/mailbox/delete/{id}', [MailboxController::class, 'destroy']);
