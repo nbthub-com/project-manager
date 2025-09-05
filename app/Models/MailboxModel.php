@@ -18,6 +18,7 @@ class MailboxModel extends Model
         'type',
         'scope',
         'is_read',
-        'is_starred'
+        'restar',
+        'sestar'
     ];
 }

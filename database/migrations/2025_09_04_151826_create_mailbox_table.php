@@ -20,7 +20,8 @@ return new class extends Migration
             $table->enum('type', ['normal', 'urgent', 'positive', 'negative'])->default('normal');
             $table->enum('scope', ['global', 'local'])->default('local');
             $table->boolean('is_read')->default(false);
-            $table->boolean('is_starred')->default(false);
+            $table->boolean('sestar')->default(false);
+            $table->boolean('restar')->default(false);
             $table->timestamps();
 
             $table->foreign('from_user_id')->references('id')->on('users')->onDelete('set null');

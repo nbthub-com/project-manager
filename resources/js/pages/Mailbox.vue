@@ -2,9 +2,9 @@
 import Button from "@/components/ui/button/Button.vue";
 import AppLayout from "@/layouts/AppLayout.vue";
 import { router, useForm } from "@inertiajs/vue3";
-import {Head} from "@inertiajs/vue3";
+import { Head } from "@inertiajs/vue3";
 import { Circle, CircleX, Delete, Edit, Eye, FileCheck, FileWarning, Info, LucideInbox, Plus, RefreshCwIcon, Star } from "lucide-vue-next";
-import { defineProps, ref, watch } from "vue"; // Added watch import
+import { defineProps, ref, watch } from "vue";
 import Dialog from "@/components/ui/simpleidalog/Dialog.vue";
 import { cn } from "@/lib/utils";
 import Select from "@/components/ui/select/select.vue";
@@ -13,10 +13,10 @@ import Input from "@/components/ui/input/Input.vue";
 import axios from 'axios';
 
 const props = defineProps(['inbox', 'outbox', 'currentUserId', 'names']);
-const inbox = ref([...props.inbox]); // Copy inbox values
-const outbox = ref([...props.outbox]) // Copy as inbox
+const inbox = ref([...props.inbox]);
+const outbox = ref([...props.outbox]);
 
-// NEW: Watch for prop changes and update local copies
+// Watchers for prop changes
 watch(() => props.inbox, (newInbox) => {
   inbox.value = [...newInbox];
 }, { deep: true });
@@ -26,18 +26,13 @@ watch(() => props.outbox, (newOutbox) => {
 }, { deep: true });
 
 const tab = ref(0);
-// Dialog states
 const showDialog = ref(false);
 const readDialog = ref(false);
 const editDialog = ref(false);
-// Message data
 const selectedMessage = ref(null);
 const editingMessage = ref(null);
 
-const breadcrumbs = [{
-  'title' : 'MailBox',
-  'href'  : '/mailbox'
-}]
+const breadcrumbs = [{ title: 'MailBox', href: '/mailbox' }];
 
 // New message form
 const form = useForm({
@@ -47,7 +42,8 @@ const form = useForm({
   type: "normal",
   scope: "local",
 });
-// Edit message form
+
+// Edit form (removed is_starred here)
 const editForm = useForm({
   id: "",
   to_user: "",
@@ -55,7 +51,6 @@ const editForm = useForm({
   content: "",
   type: "normal",
   scope: "local",
-  is_starred: false,
 });
 
 // Send new message
@@ -65,99 +60,25 @@ function submitMessage() {
     onSuccess: (page) => {
       showDialog.value = false;
       form.reset();
-      
-      // NEW: Update local copies with the new data from the server
-      if (page.props.inbox) {
-        inbox.value = [...page.props.inbox];
-      }
-      if (page.props.outbox) {
-        outbox.value = [...page.props.outbox];
-      }
+      if (page.props.inbox) inbox.value = [...page.props.inbox];
+      if (page.props.outbox) outbox.value = [...page.props.outbox];
     },
   });
 }
 
-// Open message dialog
-async function openMessage(item, in_='inbox') {
-  selectedMessage.value = item;
-  readDialog.value = true;
-  if(in_ === 'inbox'){
-    const response = await axios.patch(`/mailbox/update/read/${item.id}`)
-    if(response.status === 200){
-      item.is_read = response.data.status
-    }
-  }
-}
-
-// Open edit dialog
-function openEditDialog(item) {
-  editingMessage.value = item;
-  editForm.id = item.id;
-  editForm.to_user = item.to_user_name || '';
-  editForm.subject = item.subject;
-  editForm.content = item.content;
-  editForm.type = item.type;
-  editForm.scope = item.scope;
-  editForm.is_starred = item.is_starred;
-  editDialog.value = true;
-}
-
-// Update message
-function updateMessage() {
-  editForm.put(`/mailbox/update/${editForm.id}`, {
-    preserveScroll: true,
-    onSuccess: (page) => {
-      editDialog.value = false;
-      editForm.reset();
-      
-      // NEW: Update local copies with the new data from the server
-      if (page.props.inbox) {
-        inbox.value = [...page.props.inbox];
-      }
-      if (page.props.outbox) {
-        outbox.value = [...page.props.outbox];
-      }
-    },
-  });
-}
-
-// Toggle star status
+// Toggle star (fixed for sestar/restar)
 async function toggleStar(item) {
   try {
     const response = await axios.patch(`/mailbox/update/star/${item.id}`);
     if (response.status === 200) {
-      item.is_starred = response.data.status;
+      if (item.from_user_id === props.currentUserId) {
+        item.sestar = response.data.status;
+      } else if (item.to_user_id === props.currentUserId) {
+        item.restar = response.data.status;
+      }
     }
   } catch (error) {
     console.error("Failed to star/unstar message:", error);
-  }
-}
-
-const colors = {
-  positive: 'bg-green-100 dark:bg-green-800',
-  negative: 'bg-red-100 dark:bg-red-800',
-  normal: 'bg-gray-50 dark:bg-gray-900',
-  urgent: 'bg-yellow-100 dark:bg-yellow-800'
-};
-
-const disabled = ref(false)
-
-function refresh(){
-  window.location.href = location.href
-  disabled.value = true
-}
-
-async function deleteMessage(id) {
-  if (!confirm('Are you sure to delete this message? This cannot be undone!')) return
-  try {
-    const response = await axios.delete(`/mailbox/delete/${id}`);
-    if (response.status === 200) {
-      // Remove from local arrays
-      inbox.value = inbox.value.filter(m => m.id !== id);
-      outbox.value = outbox.value.filter(m => m.id !== id);
-    }
-  } catch (error) {
-    console.error("Failed to delete message:", error);
   }
 }
 </script>
@@ -212,13 +133,22 @@ async function deleteMessage(id) {
           </Button>
         </div>
       </div>
-      <!-- Message List -->
-      <div v-if="!inbox" class="w-full h-full items-center justify-center ">
-        <LucideInbox /> Your inbox is empty!
+      <div
+        v-if="tab === 0 && inbox.length === 0"
+        class="flex flex-col items-center justify-center p-6 text-gray-500 dark:text-gray-400"
+      >
+        <LucideInbox class="w-10 h-10 mb-2" />
+        <p>Your inbox is empty!</p>
       </div>
-      <div v-else-if="!outbox" class="w-full h-full items-center justify-center ">
-        <LucideInbox /> You have not sent any message!
+
+      <div
+        v-else-if="tab === 1 && outbox.length === 0"
+        class="flex flex-col items-center justify-center p-6 text-gray-500 dark:text-gray-400"
+      >
+        <LucideInbox class="w-10 h-10 mb-2" />
+        <p>You have not sent any messages!</p>
       </div>
+
       <div v-else class="space-y-1">
         <div
           v-for="item in tab === 0 ? inbox : outbox"
@@ -235,10 +165,10 @@ async function deleteMessage(id) {
                 item.type === 'positive'
                   ? FileCheck
                   : item.type === 'negative'
-                    ? CircleX
-                    : item.type === 'urgent'
-                      ? FileWarning
-                      : Info
+                  ? CircleX
+                  : item.type === 'urgent'
+                  ? FileWarning
+                  : Info
               "
               :class="{
                 'stroke-green-600': item.type === 'positive',
@@ -268,16 +198,23 @@ async function deleteMessage(id) {
           <!-- Action Buttons -->
           <div class="mt-2 sm:mt-0 flex flex-row gap-2 items-center">
             <!-- Star button with toggle functionality -->
-            <Button 
-              size="sm" 
-              variant="ghost" 
+            <Button
+              size="sm"
+              variant="ghost"
               @click="toggleStar(item)"
               title="Star/Unstar"
             >
-              <Star 
-                size="18" 
-                :fill="item.is_starred ? 'gold' : 'none'"
-                :class="{ 'text-yellow-500': item.is_starred }"
+              <Star
+                size="18"
+                :fill="
+                  (item.from_user_id === currentUserId ? item.sestar : item.restar)
+                    ? 'gold'
+                    : 'none'
+                "
+                :class="{
+                  'text-yellow-500':
+                    item.from_user_id === currentUserId ? item.sestar : item.restar,
+                }"
               />
             </Button>
             <Circle
@@ -297,7 +234,13 @@ async function deleteMessage(id) {
               v-if="tab === 1"
               ><Edit
             /></Button>
-            <Button size="sm" variant="ghost" v-if="tab === 1" @click="deleteMessage(item.id)"><Delete /></Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              v-if="tab === 1"
+              @click="deleteMessage(item.id)"
+              ><Delete
+            /></Button>
           </div>
         </div>
       </div>
@@ -312,10 +255,7 @@ async function deleteMessage(id) {
           <label class="block">
             <span>Recipient</span>
             <!-- Fixed: Removed type="text" attribute -->
-            <Select
-              v-model="form.to_user"
-              class="border rounded w-full p-1"
-            >
+            <Select v-model="form.to_user" class="border rounded w-full p-1">
               <option
                 v-for="(item, index) in props.names"
                 :key="index"
@@ -412,10 +352,10 @@ async function deleteMessage(id) {
                   selectedMessage.type === 'positive'
                     ? FileCheck
                     : selectedMessage.type === 'negative'
-                      ? CircleX
-                      : selectedMessage.type === 'urgent'
-                        ? FileWarning
-                        : Info
+                    ? CircleX
+                    : selectedMessage.type === 'urgent'
+                    ? FileWarning
+                    : Info
                 "
                 :class="{
                   'stroke-green-600': selectedMessage.type === 'positive',
