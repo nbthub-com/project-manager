@@ -21,12 +21,14 @@ return new class extends Migration
             $table->text('description')->nullable();
 
             // Foreign keys
-            $table->unsignedBigInteger('assigned_id'); // user assigned to the task
-            $table->unsignedBigInteger('project_id');  // project this task belongs to
+            $table->unsignedBigInteger('by_id'); // task assigned by the user
+            $table->unsignedBigInteger('to_id'); // user assigned to the task
+            $table->unsignedBigInteger('pr_id'); // project this task belongs to
 
             // Relations
-            $table->foreign('assigned_id')->references('id')->on('users')->onDelete('cascade');
-            $table->foreign('project_id')->references('id')->on('projects')->onDelete('cascade');
+            $table->foreign('by_id')->references('id')->on('users')->onDelete('cascade');
+            $table->foreign('to_id')->references('id')->on('users')->onDelete('cascade');
+            $table->foreign('pr_id')->references('id')->on('projects')->onDelete('cascade');
 
             $table->timestamps();
         });
