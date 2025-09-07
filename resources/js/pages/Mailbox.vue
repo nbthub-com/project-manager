@@ -298,8 +298,7 @@ function updateMessage() {
         <div class="space-y-2">
           <label class="block">
             <span>Recipient</span>
-            <!-- Fixed: Removed type="text" attribute -->
-            <Select v-model="form.to_user" class="border rounded w-full p-1">
+            <Select v-model="form.to_user" :disabled="form.scope !== 'local'" class="border rounded w-full p-1">
               <option
                 v-for="(item, index) in props.names"
                 :key="index"
@@ -326,25 +325,25 @@ function updateMessage() {
             <Select v-model="form.type" class="border rounded w-full p-1">
               <option
                 value="normal"
-                class="bg-white text-black dark:bg-black dark:text-white"
+                class="bg-white text-gray-950 dark:text-white dark:bg-black"
               >
                 Normal
               </option>
               <option
                 value="urgent"
-                class="bg-white text-black dark:bg-black dark:text-white"
+                class="bg-white text-yellow-600 dark:text-yellow-400 dark:bg-black"
               >
                 Urgent
               </option>
               <option
                 value="positive"
-                class="bg-white text-black dark:bg-black dark:text-white"
+                class="bg-white text-green-600 dark:text-green-400 dark:bg-black"
               >
                 Positive
               </option>
               <option
                 value="negative"
-                class="bg-white text-black dark:bg-black dark:text-white"
+                class="bg-white text-red-600 dark:text-red-400 dark:bg-black"
               >
                 Negative
               </option>
@@ -378,7 +377,6 @@ function updateMessage() {
         </div>
       </template>
     </Dialog>
-    <!-- Read Message Dialog -->
     <Dialog v-model="readDialog">
       <template #header>
         <h2 class="text-lg font-bold flex items-center gap-2">
@@ -427,7 +425,6 @@ function updateMessage() {
         </div>
       </template>
     </Dialog>
-    <!-- Edit Message Dialog -->
     <Dialog v-model="editDialog">
       <template #header>
         <h2 class="text-lg font-bold">Edit Message</h2>
