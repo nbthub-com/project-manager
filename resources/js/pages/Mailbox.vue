@@ -89,7 +89,7 @@ function refresh() {
 function openMessage(item, box) {
   selectedMessage.value = item;
   readDialog.value = true;
-  
+
   // Mark as read when opened
   if (item.is_read === 0 && box === 'inbox') { // Check for integer 0
     axios.patch(`/mailbox/update/read/${item.id}`)
@@ -218,7 +218,12 @@ function updateMessage() {
           v-for="item in tab === 0 ? inbox : outbox"
           :key="item.id"
           class="flex flex-col sm:flex-row sm:justify-between items-start sm:items-center border rounded-lg p-2 transition-all duration-200 cursor-pointer hover:shadow-md hover:bg-gray-50 dark:hover:bg-gray-700 w-full"
-          :class="{ 'bg-gray-100 dark:bg-gray-800': item.is_read === 0 }"
+          :class="
+            cn(
+              { 'bg-gray-100 dark:bg-gray-800': item.is_read === 0 },
+              { 'border-2 border-blue-800': item.scope === 'global' }
+            )
+          "
         >
           <!-- Message Info with Type Icon -->
           <div
@@ -298,7 +303,11 @@ function updateMessage() {
         <div class="space-y-2">
           <label class="block">
             <span>Recipient</span>
-            <Select v-model="form.to_user" :disabled="form.scope !== 'local'" class="border rounded w-full p-1">
+            <Select
+              v-model="form.to_user"
+              :disabled="form.scope !== 'local'"
+              class="border rounded w-full p-1"
+            >
               <option
                 v-for="(item, index) in props.names"
                 :key="index"
