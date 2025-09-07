@@ -2,10 +2,11 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use App\Models\ProjectsModel;
+use App\Models\TasksModel;
 
 class User extends Authenticatable
 {
@@ -35,7 +36,7 @@ class User extends Authenticatable
     ];
 
     /**
-     * Get the attributes that should be cast.
+     * The attributes that should be cast.
      *
      * @return array<string, string>
      */
@@ -45,5 +46,23 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
+    }
+
+    // Returns all the projects that this user manages.
+    public function managedProjects()
+    {
+        return $this->hasMany(ProjectsModel::class, 'manager_id');
+    }
+
+    // Returns all the tasks assigned to this user
+    public function assignedTasks()
+    {
+        return $this->hasMany(TasksModel::class, 'to_id');
+    }
+
+    // Returns all the tasks assigned by this user
+    public function givenTasks()
+    {
+        return $this->hasMany(TasksModel::class, 'by_id');
     }
 }

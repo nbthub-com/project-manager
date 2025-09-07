@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use App\Http\Controllers\MailboxController;
+use App\Http\Controllers\TasksController;
 
 Route::get('/', function () {
     return Inertia::render('Dashboard');
@@ -18,6 +19,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // Mailbox:: Outbox message delete route...
     Route::delete('/mailbox/delete/{id}', [MailboxController::class, 'destroy']);
+
+    // Tasks
+    Route::get('/tasks', [TasksController::class, 'index']);
+    Route::post('/tasks/create', [TasksController::class, 'create']);
 });
 require __DIR__.'/settings.php';
 require __DIR__.'/auth.php';

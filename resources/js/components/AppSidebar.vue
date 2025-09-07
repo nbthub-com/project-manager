@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/sidebar';
 import { type NavItem } from '@/types';
 import { Link, usePage } from '@inertiajs/vue3';
-import { BookOpen, LayoutGrid, Mail, Package, User as Person } from 'lucide-vue-next';
+import { BookOpen, LayoutGrid, List, Mail, Package, User as Person } from 'lucide-vue-next';
 import AppLogo from './AppLogo.vue';
 import { computed } from 'vue';
 
@@ -27,6 +27,11 @@ const mainNavItems = computed<NavItem[]>(() => {
       href: page.props.auth?.user?.role === 'admin' ? '/admin' : '/',
       icon: LayoutGrid,
     },
+    {
+      title: 'Tasks',
+      href: '/tasks',
+      icon: List,
+    }
   ];
 
   if (page.props.auth?.user?.role === 'admin') {
@@ -41,12 +46,12 @@ const mainNavItems = computed<NavItem[]>(() => {
       icon: Package,
     });
   }
-  items.push(    {
+  items.push({
       title: 'Mailbox',
       href: '/mailbox',
       icon: Mail,
-    },
-)
+    })
+
   return items;
 });
 
