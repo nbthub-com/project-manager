@@ -106,14 +106,14 @@ function openViewDialog(project) {
     <div class="flex flex-col p-2">
       <!-- Search + Add -->
       <div
-        class="border-b-2 flex flex-row justify-between p-1 items-center gap-2 outline-1 rounded-lg"
+        class="border-b-2 flex flex-row justify-between p-1 items-center gap-2 rounded-lg"
       >
-        <div class="flex flex-row">
+        <div class="flex flex-row rounded-lg">
           <Input
             v-model="s_query"
             class="transition-all duration-300 ease-in-out rounded-r-none"
           />
-          <Button class="rounded-l-none" variant="outline" @click="search">
+          <Button class="rounded-l-none" @click="search">
             <Search />
           </Button>
         </div>
