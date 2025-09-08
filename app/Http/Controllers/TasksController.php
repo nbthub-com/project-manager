@@ -20,13 +20,14 @@ class TasksController extends Controller
                 ->get();
         } else {
             $tasks = TasksModel::with(['manager', 'assignee', 'project'])
-                ->where('to_id', $user->id)
-                ->orWhere('by_id', $user->id)
+                ->where(function ($q) use ($user) {
+                    $q->where('to_id', $user->id)
+                      ->orWhere('by_id', $user->id);
+                })
                 ->latest()
                 ->get();
         }
 
-        // Transform tasks
         $tasks = $tasks->map(function ($task) {
             return [
                 'id'          => $task->id,
@@ -34,26 +35,18 @@ class TasksController extends Controller
                 'role_title'  => $task->role_title,
                 'status'      => $task->status,
                 'description' => $task->description,
-                'manager'     => $task->manager ? $task->manager->name : null,
-                'assignee'    => $task->assignee ? $task->assignee->name : null,
-                'project'     => $task->project ? $task->project->title : null,
+                'manager'     => $task->manager?->name,
+                'assignee'    => $task->assignee?->name,
+                'project'     => $task->project?->title,
                 'created_at'  => $task->created_at->toDateTimeString(),
                 'updated_at'  => $task->updated_at->toDateTimeString(),
             ];
         });
 
-        // Projects where the user is a manager
         $managerOf = $user->managedProjects()
             ->select('id', 'title')
-            ->get()
-            ->map(function ($project) {
-                return [
-                    'id'    => $project->id,
-                    'title' => $project->title,
-                ];
-            });
+            ->get();
 
-        // All non-admin user names (for assigning tasks)
         $names = User::where('role', '!=', 'admin')
             ->select('id', 'name')
             ->get();
@@ -64,10 +57,11 @@ class TasksController extends Controller
             'names'      => $names,
         ]);
     }
+
     public function create(Request $request)
     {
         $user = auth()->user();
-        // Validate request
+
         $validated = $request->validate([
             'title'       => 'required|string|max:255',
             'description' => 'required|string',
@@ -75,7 +69,6 @@ class TasksController extends Controller
             'project_id'  => 'required|exists:projects,id',
         ]);
 
-        // Only if the creator is manager of that project
         $isManager = $user->managedProjects()
             ->where('id', $validated['project_id'])
             ->exists();
@@ -86,17 +79,48 @@ class TasksController extends Controller
             ]);
         }
 
-        // Create task
-        $task = TasksModel::create([
+        TasksModel::create([
             'title'       => $validated['title'],
             'description' => $validated['description'],
             'status'      => 'pending',
             'to_id'       => $validated['to_id'],
-            'by_id'       => auth()->id(),
-            'pr_id'       => $validated['project_id'], // ✅ map to actual column
+            'by_id'       => $user->id,
+            'pr_id'       => $validated['project_id'],
         ]);
 
-        return redirect('/tasks')
-            ->with('success', 'Task created successfully.');
+        return redirect('/tasks')->with('success', 'Task created successfully.');
+    }
+
+    public function update(Request $request, $id)
+    {
+        $task = TasksModel::findOrFail($id);
+        $user = auth()->user();
+
+        // Authorization: allow task creator, project manager, or admin
+        $isManager = $user->managedProjects()
+            ->where('id', $task->pr_id)
+            ->exists();
+
+        if (!$isManager && $user->role !== 'admin') {
+            return redirect('/tasks')->with('error', 'You cannot update this task!');
+        }
+
+        $validated = $request->validate([
+            'title'       => 'nullable|string|max:255',
+            'description' => 'nullable|string',
+            'to_id'       => 'nullable|exists:users,id',
+            'project_id'  => 'nullable|exists:projects,id',
+            'status'      => 'nullable|string|in:pending,in_progress,completed,cancelled',
+        ]);
+
+        $task->update([
+            'title'       => $validated['title'] ?? $task->title,
+            'description' => $validated['description'] ?? $task->description,
+            'to_id'       => $validated['to_id'] ?? $task->to_id,
+            'pr_id'       => $validated['project_id'] ?? $task->pr_id,
+            'status'      => $validated['status'] ?? $task->status,
+        ]);
+
+        return redirect('/tasks')->with('success', 'Task updated successfully!');
     }
 }

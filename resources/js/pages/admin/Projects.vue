@@ -103,7 +103,7 @@ function openViewDialog(project) {
 <template>
   <Head title="Projects" />
   <AppLayout :breadcrumbs="breadcrumbs">
-    <div class="flex flex-col gap-4 p-4">
+    <div class="flex flex-col p-2">
       <!-- Search + Add -->
       <div
         class="border-b-2 flex flex-row justify-between p-1 items-center gap-2 outline-1 rounded-lg"
@@ -111,7 +111,7 @@ function openViewDialog(project) {
         <div class="flex flex-row">
           <Input
             v-model="s_query"
-            class="w-[70%] focus:w-[90%] transition-all duration-300 ease-in-out rounded-r-none"
+            class="transition-all duration-300 ease-in-out rounded-r-none"
           />
           <Button class="rounded-l-none" variant="outline" @click="search">
             <Search />

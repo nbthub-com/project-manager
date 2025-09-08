@@ -45,7 +45,6 @@
         <!-- Footer slot -->
         <footer class="px-6 pb-6 pt-2 flex justify-end gap-2">
           <slot name="footer">
-            <button type="button" @click="close" class="rounded-lg px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-black/5 dark:hover:bg-white/5">Close</button>
           </slot>
         </footer>
       </div>
