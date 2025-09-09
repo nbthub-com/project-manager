@@ -1,29 +1,132 @@
 <script setup>
-import { defineProps, defineEmits } from "vue";
+import { ref, onMounted, onBeforeUnmount, watch, nextTick } from "vue";
 
-// Use `modelValue` convention for v-model
 const props = defineProps({
   modelValue: {
     type: String,
-    default: "user",
+    default: "",
+  },
+  options: {
+    type: Array,
+    required: true, // [{ label: "User", value: "user" }]
   },
 });
 
 const emit = defineEmits(["update:modelValue"]);
+
+const isOpen = ref(false);
+const dropdownRef = ref(null);
+const dropdownStyles = ref({});
+
+function toggle() {
+  isOpen.value = !isOpen.value;
+  if (isOpen.value) {
+    nextTick(() => positionDropdown());
+  }
+}
+
+function selectOption(option) {
+  emit("update:modelValue", option.value);
+  isOpen.value = false;
+}
+
+function handleClickOutside(e) {
+  if (dropdownRef.value && !dropdownRef.value.contains(e.target)) {
+    isOpen.value = false;
+  }
+}
+
+function positionDropdown() {
+  if (!dropdownRef.value) return;
+  const rect = dropdownRef.value.getBoundingClientRect();
+  const offset = 10; // margin from edges
+  const viewportHeight = window.innerHeight;
+
+  // Available space
+  const spaceBelow = viewportHeight - rect.bottom - offset;
+  const spaceAbove = rect.top - offset;
+
+  // Decide direction (open down or up)
+  const openDown = spaceBelow > spaceAbove;
+
+  // Compute max height
+  const maxHeight = openDown ? spaceBelow : spaceAbove;
+
+  dropdownStyles.value = {
+    top: openDown ? rect.bottom + "px" : "auto",
+    bottom: openDown ? "auto" : viewportHeight - rect.top + "px",
+    left: rect.left + "px",
+    width: rect.width + "px",
+    maxHeight: maxHeight + "px",
+  };
+}
+
+onMounted(() => {
+  document.addEventListener("click", handleClickOutside);
+  window.addEventListener("resize", positionDropdown);
+  window.addEventListener("scroll", positionDropdown, true); // track parent scrolling
+});
+onBeforeUnmount(() => {
+  document.removeEventListener("click", handleClickOutside);
+  window.removeEventListener("resize", positionDropdown);
+  window.removeEventListener("scroll", positionDropdown, true);
+});
 </script>
 
 <template>
-  <select
-    :value="props.modelValue"
-    @input="emit('update:modelValue', $event.target.value)"
-    class="file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground 
-           dark:bg-input/30 border-input flex h-9 w-full min-w-0 rounded-md border bg-transparent px-3 py-1 
-           text-base shadow-xs transition-[color,box-shadow] outline-none file:inline-flex file:h-7 file:border-0 
-           file:bg-transparent file:text-sm file:font-medium disabled:pointer-events-none disabled:cursor-not-allowed 
-           disabled:opacity-50 md:text-sm focus-visible:border-ring focus-visible:ring-ring/50 
-           focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 
-           aria-invalid:border-destructive"
-  >
-  <slot></slot>
-  </select>
+  <div ref="dropdownRef" class="relative w-full">
+    <!-- Trigger -->
+    <button
+      type="button"
+      @click="toggle"
+      class="w-full flex items-center justify-between rounded-md border border-input bg-card px-3 py-2 text-sm
+             text-foreground shadow-sm transition focus:ring-2 focus:ring-primary/50 focus:outline-none"
+    >
+      <span>
+        {{
+          props.options.find((o) => o.value === props.modelValue)?.label ||
+          "Select an option"
+        }}
+      </span>
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        class="h-4 w-4 text-muted-foreground transition-transform"
+        :class="{ 'rotate-180': isOpen }"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+      >
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+      </svg>
+    </button>
+
+    <!-- Options -->
+    <transition
+      enter-active-class="transition duration-150 ease-out"
+      enter-from-class="opacity-0 scale-95"
+      enter-to-class="opacity-100 scale-100"
+      leave-active-class="transition duration-100 ease-in"
+      leave-from-class="opacity-100 scale-100"
+      leave-to-class="opacity-0 scale-95"
+    >
+      <Teleport to="body">
+        <ul
+          v-if="isOpen"
+          class="fixed z-[9999] rounded-xl border bg-secondary border-input text-sm 
+                 shadow-lg shadow-blue-500/20 inset-2 overflow-auto m-1"
+          :style="dropdownStyles"
+        >
+          <li
+            v-for="option in props.options"
+            :key="option.value"
+            @click="selectOption(option)"
+            class="px-3 py-2 cursor-pointer hover:bg-gradient-to-r hover:from-primary hover:to-secondary 
+                   hover:text-primary-foreground transition"
+          >
+            {{ option.label }}
+          </li>
+        </ul>
+      </Teleport>
+    </transition>
+  </div>
 </template>

@@ -7,6 +7,8 @@ use Inertia\Inertia;
 use App\Models\User;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Hash;
+use App\Models\TasksModel;
+use App\Models\ProjectsModel;
 
 class AdminController extends Controller
 {
@@ -23,15 +25,46 @@ class AdminController extends Controller
 
     public function view_mems()
     {
-        // Only send roles of manager and user
         $users = User::where('role', '!=', 'admin')
             ->orderBy('id', 'desc')
-            ->get(['id', 'name', 'email']); 
+            ->get(['id', 'name', 'email']);
+
+        $users = $users->map(function ($user) {
+            // Projects managed
+            $projectsAssigned = ProjectsModel::where('manager_id', $user->id)->count();
+            $projectsDone = ProjectsModel::where('manager_id', $user->id)
+                ->where('status', 'completed')
+                ->count();
+
+            // Tasks assigned to the user
+            $tasksAssigned = TasksModel::where('to_id', $user->id)->count();
+            $tasksDone = TasksModel::where('to_id', $user->id)
+                ->where('status', 'completed')
+                ->count();
+
+            // Roles in projects (grab distinct role_title from tasks table)
+            $roles = TasksModel::where('to_id', $user->id)
+                ->distinct()
+                ->pluck('role_title')
+                ->toArray();
+
+            return [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'projects_assigned' => $projectsAssigned,
+                'projects_done' => $projectsDone,
+                'tasks_assigned' => $tasksAssigned,
+                'tasks_done' => $tasksDone,
+                'roles' => $roles,
+            ];
+        });
 
         return Inertia::render('admin/Members', [
             'users' => $users,
         ]);
     }
+
     public function add_mem(Request $request)
     {
         // Normalize values before validation

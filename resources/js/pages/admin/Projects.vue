@@ -8,7 +8,7 @@ import Button from '@/components/ui/button/Button.vue';
 import { Search } from 'lucide-vue-next';
 import Dialog from '@/components/ui/simpleidalog/Dialog.vue';
 import InputError from '@/components/InputError.vue';
-import Select from '@/components/ui/select/select.vue';
+import Select from '@/components/ui/select/Select.vue';
 
 const breadcrumbs = [
   { title: 'Projects', href: '/admin/projects' },

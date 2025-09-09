@@ -8,7 +8,7 @@ import { defineProps, ref, watch, computed } from "vue";
 // Fix: Check the correct path for Dialog component
 import Dialog from "@/components/ui/simpleidalog/Dialog.vue";
 import { cn } from "@/lib/utils";
-import Select from "@/components/ui/select/select.vue";
+import Select from "@/components/ui/select/Select.vue";
 import InputError from "@/components/InputError.vue";
 import Input from "@/components/ui/input/Input.vue";
 import axios from 'axios';

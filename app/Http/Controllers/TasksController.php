@@ -50,11 +50,16 @@ class TasksController extends Controller
         $names = User::where('role', '!=', 'admin')
             ->select('id', 'name')
             ->get();
+        
+        $roles = TasksModel::select('role_title')
+            ->distinct()
+            ->pluck('role_title');
 
         return Inertia::render('Tasks', [
-            'tasks'      => $tasks,
+            'tasks' => $tasks,
+            'roles' => $roles,
+            'names' => $names,
             'manager_of' => $managerOf,
-            'names'      => $names,
         ]);
     }
 
@@ -65,6 +70,7 @@ class TasksController extends Controller
         $validated = $request->validate([
             'title'       => 'required|string|max:255',
             'description' => 'required|string',
+            'role_title'  => 'required|string',
             'to_id'       => 'required|exists:users,id',
             'project_id'  => 'required|exists:projects,id',
         ]);
@@ -108,6 +114,7 @@ class TasksController extends Controller
         $validated = $request->validate([
             'title'       => 'nullable|string|max:255',
             'description' => 'nullable|string',
+            'role_title'  => 'required|string',
             'to_id'       => 'nullable|exists:users,id',
             'project_id'  => 'nullable|exists:projects,id',
             'status'      => 'nullable|string|in:pending,in_progress,completed,cancelled',
@@ -119,6 +126,7 @@ class TasksController extends Controller
             'to_id'       => $validated['to_id'] ?? $task->to_id,
             'pr_id'       => $validated['project_id'] ?? $task->pr_id,
             'status'      => $validated['status'] ?? $task->status,
+            'role_title'  => $validated['role_title'] ?? $task->role_title
         ]);
 
         return redirect('/tasks')->with('success', 'Task updated successfully!');
