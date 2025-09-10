@@ -4,10 +4,11 @@ use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use App\Http\Controllers\MailboxController;
 use App\Http\Controllers\TasksController;
+use App\Http\Controllers\UserDashboardController;
 
-Route::get('/', function () {
-    return Inertia::render('Dashboard');
-})->middleware(['auth', 'verified', 'user'])->name('dashboard');
+Route::get('/', [UserDashboardController::class, 'index'])
+    ->middleware(['auth', 'verified', 'user'])
+    ->name('dashboard');
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/mailbox', [MailboxController::class, 'index']);
