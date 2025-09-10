@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\Models\TasksModel;
 use App\Models\User;
 use Inertia\Inertia;
+use Illuminate\Support\Str;
 
 class TasksController extends Controller
 {
@@ -75,6 +76,9 @@ class TasksController extends Controller
             'project_id'  => 'required|exists:projects,id',
         ]);
 
+        // Slug bana letay hein
+        $validated['role_title'] = Str::slug($validated['role_title']);
+
         $isManager = $user->managedProjects()
             ->where('id', $validated['project_id'])
             ->exists();
@@ -92,6 +96,7 @@ class TasksController extends Controller
             'to_id'       => $validated['to_id'],
             'by_id'       => $user->id,
             'pr_id'       => $validated['project_id'],
+            'role_title'  => $validated['role_title']
         ]);
 
         return redirect('/tasks')->with('success', 'Task created successfully.');
@@ -112,13 +117,16 @@ class TasksController extends Controller
         }
 
         $validated = $request->validate([
-            'title'       => 'nullable|string|max:255',
-            'description' => 'nullable|string',
+            'title'       => 'required|string|max:255',
+            'description' => 'required|string',
             'role_title'  => 'required|string',
-            'to_id'       => 'nullable|exists:users,id',
-            'project_id'  => 'nullable|exists:projects,id',
-            'status'      => 'nullable|string|in:pending,in_progress,completed,cancelled',
+            'to_id'       => 'required|exists:users,id',
+            'project_id'  => 'required|exists:projects,id',
+            'status'      => 'required|string|in:pending,in_progress,completed,cancelled',
         ]);
+
+        // Slug bana letay hein yahan bhi
+        $validated['role_title'] = Str::slug($validated['role_title']);
 
         $task->update([
             'title'       => $validated['title'] ?? $task->title,
@@ -130,5 +138,18 @@ class TasksController extends Controller
         ]);
 
         return redirect('/tasks')->with('success', 'Task updated successfully!');
+    }
+    public function delete($id)
+    {
+        $task = TasksModel::findOrFail($id);
+        $user = auth()->user();
+        $isManager = $user->managedProjects()
+            ->where('id', $task->pr_id)
+            ->exists();
+        if (! $isManager && $user->role !== 'admin') {
+            return redirect('/tasks')->with('error', 'You cannot delete this task!');
+        }
+        $task->delete();
+        return redirect('/tasks')->with('success', 'Task deleted successfully!');
     }
 }

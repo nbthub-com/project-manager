@@ -1,16 +1,13 @@
 <script setup>
 import AppLayout from "@/layouts/AppLayout.vue";
 import { Head, usePage, router, useForm } from "@inertiajs/vue3";
-import Table from "@/components/ui/table/Table.vue";
 import Button from "@/components/ui/button/Button.vue";
 import Dialog from "@/components/ui/simpleidalog/Dialog.vue";
 import Input from "@/components/ui/input/Input.vue";
-import Label from "@/components/ui/label/Label.vue";
 import Dropdown from "@/components/ui/select/Select.vue";
-import Option from "@/components/ui/select/Option.vue";
 import InputError from "@/components/InputError.vue";
 import { ref, watch } from "vue";
-import { Delete, Edit, Eye, Search } from "lucide-vue-next";
+import { Edit, Eye, Search } from "lucide-vue-next";
 
 const breadcrumbs = [{ title: "Tasks", href: "/tasks" }];
 
@@ -58,6 +55,7 @@ const form = useForm({
   to_id: "",
   project_id: "",
   status: "pending",
+  role_title: "frontend-developer",
 });
 
 // Create or update
@@ -88,6 +86,7 @@ function editTask(task) {
   form.to_id = props.names.find((u) => u.name === task.assignee)?.id || "";
   form.project_id = props.manager_of.find((p) => p.title === task.project)?.id || "";
   form.status = task.status;
+  form.role_title = task.role_title || "frontend-developer";
   isDialogOpen.value = true;
 }
 
@@ -107,11 +106,7 @@ function openViewDialog(task) {
   viewTask.value = task;
   isViewDialogOpen.value = true;
 }
-const roleOptions = props.roles
-  .filter((r) => r)
-  .map((r) => ({ label: r.trim().replace(/-/g, " "), value: r.trim() }));
-
-const options = roleOptions.length ? roleOptions : [
+const defaultRoles = [
   { label: "Frontend Developer", value: "frontend-developer" },
   { label: "Backend Developer", value: "backend-developer" },
   { label: "Fullstack Developer", value: "fullstack-developer" },
@@ -122,6 +117,25 @@ const options = roleOptions.length ? roleOptions : [
   { label: "Add +", value: null },
 ];
 
+const roleOptions = props.roles
+  .filter((r) => r)
+  .map((r) => {
+    const formatted = r
+      .trim()
+      .replace(/-/g, " ")
+      .replace(/\b\w/g, (c) => c.toUpperCase()); // Title Case
+
+    return {
+      label: formatted,
+      value: r.trim(),
+    };
+  });
+
+// Merge + deduplicate by `value`
+const options = [
+  ...roleOptions,
+  ...defaultRoles.filter((def) => !roleOptions.some((opt) => opt.value === def.value)),
+];
 </script>
 
 <template>
@@ -160,81 +174,132 @@ const options = roleOptions.length ? roleOptions : [
       <div
         class="grid gap-6 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 px-3"
       >
-        <div
-          v-for="task in filteredTasks"
-          :key="task.id"
-          class="p-4 rounded-xl shadow-lg text-white bg-gradient-to-br from-[#5a248a] to-secondary transition transform hover:scale-[1.02] hover:shadow-xl flex flex-col justify-between"
-        >
-          <!-- Task Info -->
-          <div>
-            <div
-              class="flex justify-between items-center border-b border-white/20 pb-2 mb-3"
-            >
-              <h3 class="text-lg font-bold">
-                {{ task.title
-                }}<span class="font-extralight text-[15px] h-full"> ({{ task.id }})</span>
-              </h3>
-              <button
-                class="text-red-200 hover:text-red-400 cursor-pointer"
-                @click="deleteTask(task.id)"
-              >
-                ✕
-              </button>
-            </div>
-          </div>
-
-          <div class="flex flex-col gap-1">
-            <p class="text-sm opacity-90">
-              Project:
-              <span class="font-bold capitalize text-foreground">{{ task.project }}</span>
-            </p>
-            <p class="text-sm opacity-90">
-              For:
-              <span class="font-bold capitalize text-foreground">{{
-                task.assignee
-              }}</span>
-            </p>
-            <p class="text-sm opacity-90">
-              By:
-              <span class="font-bold capitalize text-foreground">{{ task.manager }}</span>
-            </p>
-          </div>
-
-          <!-- Status + Actions -->
+        <template v-if="filteredTasks.length">
           <div
-            class="mt-4 flex items-center justify-between border-t border-white/20 pt-2"
+            v-for="task in filteredTasks"
+            :key="task.id"
+            class="p-4 rounded-xl shadow-lg text-white bg-gradient-to-br from-[#5a248a] to-secondary transition transform hover:scale-[1.02] hover:shadow-xl flex flex-col justify-between"
+            :class="task.status === 'cancelled' ? 'opacity-60 grayscale' : ''"
           >
-            <span
-              class="px-2 py-1 rounded-full text-xs font-semibold capitalize"
-              :class="{
-                'bg-yellow-400 text-black': task.status === 'pending',
-                'bg-blue-500 text-white': task.status === 'in_progress',
-                'bg-green-600 text-white': task.status === 'completed',
-                'bg-red-500 text-white': task.status === 'cancelled',
-              }"
+            <!-- Task Info -->
+            <div>
+              <div
+                class="flex justify-between items-center border-b border-white/20 pb-2 mb-3"
+              >
+                <h3 class="text-lg font-bold">
+                  {{ task.title
+                  }}<span class="font-extralight text-[15px] h-full">
+                    ({{ task.id }})</span
+                  >
+                </h3>
+                <button
+                  class="text-red-200 hover:text-red-400 cursor-pointer"
+                  @click="deleteTask(task.id)"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+
+            <div class="flex flex-col gap-1">
+              <p class="text-sm opacity-90">
+                Project:
+                <span class="font-bold capitalize text-foreground">{{
+                  task.project
+                }}</span>
+              </p>
+              <p class="text-sm opacity-90">
+                For:
+                <span class="font-bold capitalize text-foreground">{{
+                  task.assignee
+                }}</span>
+              </p>
+              <p class="text-sm opacity-90">
+                By:
+                <span class="font-bold capitalize text-foreground">{{
+                  task.manager
+                }}</span>
+              </p>
+            </div>
+
+            <!-- Status + Actions -->
+            <div
+              class="mt-4 flex items-center justify-between border-t border-white/20 pt-2"
             >
-              {{ task.status.replace("_", " ") }}
-            </span>
-
-            <div class="flex gap-0.5 text-sm">
-              <button
-                class="p-1 rounded-md hover:bg-white/20 transition"
-                @click="openViewDialog(task)"
-                title="View Task"
+              <span
+                class="px-2 py-1 rounded-full text-xs font-semibold capitalize"
+                :class="{
+                  'bg-yellow-400 text-black': task.status === 'pending',
+                  'bg-blue-500 text-white': task.status === 'in_progress',
+                  'bg-green-600 text-white': task.status === 'completed',
+                  'bg-red-500 text-white': task.status === 'cancelled',
+                }"
               >
-                <Eye class="w-4 h-4 text-white" />
-              </button>
+                {{ task.status.replace("_", " ") }}
+              </span>
 
-              <button
-                class="p-1 rounded-md hover:bg-white/20 transition"
-                @click="editTask(task)"
-                title="Edit Task"
-              >
-                <Edit class="w-4 h-4 text-white" />
-              </button>
+              <div class="flex gap-0.5 text-sm">
+                <button
+                  class="p-1 rounded-md hover:bg-white/20 transition"
+                  @click="openViewDialog(task)"
+                  title="View Task"
+                >
+                  <Eye class="w-4 h-4 text-white" />
+                </button>
+
+                <button
+                  class="p-1 rounded-md hover:bg-white/20 transition"
+                  @click="editTask(task)"
+                  title="Edit Task"
+                >
+                  <Edit class="w-4 h-4 text-white" />
+                </button>
+              </div>
             </div>
           </div>
-        </div>
+        </template>
+        <template v-else>
+          <div
+            class="col-span-full flex flex-col items-center justify-center py-12 px-4 text-center text-gray-500 dark:text-gray-400"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              class="w-16 h-16 mb-4 text-gray-400 dark:text-gray-600"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              stroke-width="1.5"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M9 12h6m2 0a2 2 0 11-4 0 2 2 0 014 0zm0 0v7m-8-7a2 2 0 11-4 0 2 2 0 014 0zm0 0v7m0-12V5a2 2 0 012-2h4a2 2 0 012 2v2"
+              />
+            </svg>
+            <p class="text-lg font-medium">No tasks found</p>
+            <p class="text-sm opacity-80">
+              {{
+                s_query
+                  ? "Try adjusting your search terms."
+                  : "Looks like there are no tasks yet."
+              }}
+            </p>
+            <Button
+              v-if="props.manager_of.length || user.role === 'admin'"
+              class="mt-4"
+              @click="
+                () => {
+                  isEditMode = false;
+                  form.reset();
+                  form.status = 'pending';
+                  isDialogOpen = true;
+                }
+              "
+            >
+              + Assign First Task
+            </Button>
+          </div>
+        </template>
       </div>
     </div>
 
@@ -303,14 +368,21 @@ const options = roleOptions.length ? roleOptions : [
           <div class="w-full flex flex-row p-1 gap-2">
             <div class="w-1/2">
               <label class="block text-sm font-medium mb-1">Role</label>
-              <Dropdown v-model="form.role" :options="options" />
+              <Dropdown v-model="form.role_title" :options="options" />
+
               <Input
-                v-model="form.new_role"
-                v-if="!form.role"
+                v-if="
+                  form.role_title === null ||
+                  !options
+                    .filter((opt) => opt.value)
+                    .some((opt) => opt.value === form.role_title)
+                "
+                v-model="form.role_title"
                 class="mt-1"
-                placeholder="Enter new role"
+                placeholder="Enter new role_title"
               />
-              <InputError :message="form.errors.role" />
+
+              <InputError :message="form.errors.role_title" />
             </div>
             <div class="w-1/2" v-if="isEditMode">
               <label class="block text-sm font-medium mb-1">Status</label>
@@ -391,7 +463,7 @@ const options = roleOptions.length ? roleOptions : [
             <div class="space-y-1">
               <p class="text-xs uppercase tracking-wide text-gray-500">Role</p>
               <p class="font-semibold capitalize">
-                {{ viewTask.role?.replace(/-/g, " ") || "—" }}
+                {{ viewTask.role_title?.replace(/-/g, " ") || "—" }}
               </p>
             </div>
             <div class="space-y-1">

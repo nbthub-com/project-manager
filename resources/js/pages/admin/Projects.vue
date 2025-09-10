@@ -1,11 +1,11 @@
 <script setup lang="js">
 import { Head, useForm, usePage, router } from '@inertiajs/vue3';
-import { defineProps, ref, watch } from 'vue';
+import { defineProps, ref, watch, computed } from 'vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import Table from '@/components/ui/table/Table.vue';
 import Input from '@/components/ui/input/Input.vue';
 import Button from '@/components/ui/button/Button.vue';
-import { Search } from 'lucide-vue-next';
+import { Edit, Eye, Search } from 'lucide-vue-next';
 import Dialog from '@/components/ui/simpleidalog/Dialog.vue';
 import InputError from '@/components/InputError.vue';
 import Select from '@/components/ui/select/Select.vue';
@@ -19,13 +19,11 @@ const props = defineProps({
   names: Array,
 });
 
-const page = usePage();
 const s_query = ref('');
 const filteredProjects = ref([...props.projects]);
 const isDialogOpen = ref(false);
 const isEditMode = ref(false);
 const editId = ref(null);
-
 const isViewDialogOpen = ref(false);
 const viewProject = ref(null);
 
@@ -37,6 +35,18 @@ const form = useForm({
   is_starred: false,
   status: 'inprogress',
 });
+
+// Create manager options for the Select component
+const managerOptions = computed(() => {
+  return props.names.map(name => ({ label: name, value: name }));
+});
+
+// Create status options for the Select component
+const statusOptions = [
+  { label: 'In Progress', value: 'inprogress' },
+  { label: 'Completed', value: 'completed' },
+  { label: 'Cancelled', value: 'cancelled' }
+];
 
 // Search handling
 watch(s_query, () => search());
@@ -50,14 +60,15 @@ function search() {
   filteredProjects.value = props.projects.filter(project =>
     project.title.toLowerCase().includes(query) ||
     project.manager_name.toLowerCase().includes(query) ||
-    (project.description && project.description.toLowerCase().includes(query))
+    (project.description && project.description.toLowerCase().includes(query)) ||
+    project.status.toLowerCase().includes(query)
   );
 }
 
 // Create or update project
 function submitForm() {
   if (isEditMode.value && editId.value) {
-    form.post(`/admin/projects/update/${editId.value}`, {
+    form.put(`/admin/projects/update/${editId.value}`, {
       onSuccess: () => {
         isDialogOpen.value = false;
         router.visit('/admin/projects');
@@ -98,6 +109,11 @@ function openViewDialog(project) {
   viewProject.value = project;
   isViewDialogOpen.value = true;
 }
+
+// Helper function to format status text
+function formatStatus(status) {
+  return status.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
+}
 </script>
 
 <template>
@@ -111,9 +127,10 @@ function openViewDialog(project) {
         <div class="flex flex-row rounded-lg">
           <Input
             v-model="s_query"
+            placeholder="Search projects..."
             class="transition-all duration-300 ease-in-out rounded-r-none"
           />
-          <Button class="rounded-l-none" @click="search">
+          <Button class="rounded-l-none" @click="search" aria-label="Search projects">
             <Search />
           </Button>
         </div>
@@ -122,85 +139,168 @@ function openViewDialog(project) {
             () => {
               isEditMode = false;
               form.reset();
+              form.status = 'inprogress'; // Reset status to default
               isDialogOpen = true;
             }
           "
-          >+ Add</Button
+          >+ New Project</Button
         >
       </div>
 
       <!-- Projects table -->
-      <Table :rows="filteredProjects" :toHide="['description']" table-title="Projects">
-        <template #actions="{ row }">
-          <a class="hover:underline cursor-pointer" @click="openViewDialog(row)">View</a>
-          &sdot;
-          <a class="hover:underline cursor-pointer" @click="editProject(row)">Edit</a>
-          &sdot;
-          <a class="hover:underline cursor-pointer" @click="deleteProject(row.id)"
-            >Delete</a
+      <div class="grid gap-6 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 p-3">
+        <div
+          v-for="project in filteredProjects"
+          :key="project.id"
+          class="p-4 rounded-xl shadow-lg text-white bg-gradient-to-br from-[#5a248a] to-secondary transition transform hover:scale-[1.02] hover:shadow-xl flex flex-col justify-between"
+        >
+          <!-- Header: Title + Delete -->
+          <div
+            class="flex justify-between items-center border-b border-white/20 pb-2 mb-3"
           >
-        </template>
-      </Table>
+            <h3 class="text-lg font-bold">
+              {{ project.title }}
+            </h3>
+            <button
+              class="text-red-200 hover:text-red-400 cursor-pointer"
+              @click="deleteProject(project.id)"
+              title="Delete Project"
+            >
+              ✕
+            </button>
+          </div>
+
+          <!-- Body: Manager + Description -->
+          <div class="flex flex-col gap-1 text-sm opacity-90">
+            <p>
+              Manager: <span class="font-bold">{{ project.manager_name }}</span>
+            </p>
+            <p>
+              {{ project.description }}
+            </p>
+          </div>
+
+          <!-- Footer: Status, Starred, Actions -->
+          <div
+            class="mt-4 flex items-center justify-between border-t border-white/20 pt-2"
+          >
+            <div class="flex gap-2">
+              <span
+                class="px-2 py-1 rounded-full text-xs font-semibold"
+                :class="{
+                  'bg-blue-200 text-blue-800': project.status === 'inprogress',
+                  'bg-green-200 text-green-800': project.status === 'completed',
+                  'bg-red-200 text-red-800': project.status === 'cancelled',
+                }"
+              >
+                {{ formatStatus(project.status) }}
+              </span>
+              <span
+                class="px-2 py-1 rounded-full text-xs font-semibold"
+                v-if="project.is_starred"
+                :class="
+                  project.is_starred
+                    ? 'bg-yellow-100 text-yellow-700'
+                    : 'bg-gray-200 text-gray-600'
+                "
+              >
+                ⭐
+              </span>
+            </div>
+            <div class="flex gap-2">
+              <Eye
+                class="w-5 h-5 text-white cursor-pointer hover:text-gray-200"
+                @click="openViewDialog(project)"
+              />
+              <Edit
+                class="w-5 h-5 text-white cursor-pointer hover:text-gray-200"
+                @click="editProject(project)"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </AppLayout>
 
   <!-- Add/Edit Project Dialog -->
   <Dialog v-model="isDialogOpen">
     <template #header>
-      <h2 class="text-lg font-semibold">
-        {{ isEditMode ? "Edit Project" : "Add New Project" }}
-      </h2>
+      <div class="flex justify-between items-center w-full">
+        <h2 class="text-lg font-semibold">
+          {{ isEditMode ? "Edit Project" : "Add New Project" }}
+        </h2>
+      </div>
     </template>
+
     <template #body>
       <form @submit.prevent="submitForm" class="flex flex-col gap-3">
         <!-- Title -->
-        <Input v-model="form.title" placeholder="Project Title" />
-        <InputError :message="form.errors.title" />
+        <div>
+          <label class="block text-sm font-medium mb-1">Title</label>
+          <Input v-model="form.title" placeholder="Project Title" />
+          <InputError :message="form.errors.title" />
+        </div>
 
         <!-- Manager -->
-        <Select v-model="form.manager" class="border rounded p-2 text-sm">
-          <option v-for="name in props.names" :key="name" :value="name">
-            {{ name }}
-          </option>
-        </Select>
-        <InputError :message="form.errors.manager" />
+        <div>
+          <label class="block text-sm font-medium mb-1">Manager</label>
+          <Select
+            v-model="form.manager"
+            :options="managerOptions"
+            placeholder="Select a manager"
+            class="w-full"
+          />
+          <InputError :message="form.errors.manager" />
+        </div>
 
         <!-- Description -->
-        <textarea
-          v-model="form.description"
-          placeholder="Description"
-          class="border rounded p-2 text-sm"
-        ></textarea>
-        <InputError :message="form.errors.description" />
+        <div>
+          <label class="block text-sm font-medium mb-1">Description</label>
+          <textarea
+            v-model="form.description"
+            placeholder="Description"
+            class="border rounded p-2 text-sm w-full"
+            rows="3"
+          ></textarea>
+          <InputError :message="form.errors.description" />
+        </div>
 
         <!-- Status (only on edit) -->
         <div v-if="isEditMode" class="flex flex-col gap-1">
-          <label>Status</label>
-          <Select v-model="form.status">
-            <option value="inprogress">In Progress</option>
-            <option value="completed">Completed</option>
-            <option value="aborted">Aborted</option>
-          </Select>
+          <label class="block text-sm font-medium mb-1">Status</label>
+          <Select v-model="form.status" :options="statusOptions" class="w-full" />
+          <InputError :message="form.errors.status" />
         </div>
 
         <!-- Starred checkbox -->
-        <label class="flex items-center gap-2">
-          <input type="checkbox" v-model="form.is_starred" />
-          <span>Starred</span>
-        </label>
+        <div class="flex items-center gap-2">
+          <input
+            type="checkbox"
+            id="is_starred"
+            v-model="form.is_starred"
+            class="rounded border-gray-300"
+          />
+          <label for="is_starred" class="text-sm font-medium">Starred</label>
+        </div>
+        <InputError :message="form.errors.is_starred" />
       </form>
     </template>
+
     <template #footer>
-      <Button @click="isDialogOpen = false">Cancel</Button>
+      <Button variant="outline" @click="isDialogOpen = false"> Cancel </Button>
       <Button @click="submitForm" :disabled="form.processing">
         {{ isEditMode ? "Update" : "Create" }}
       </Button>
     </template>
   </Dialog>
 
+  <!-- View Project Dialog -->
   <Dialog v-model="isViewDialogOpen">
     <template #header>
-      <h2 class="text-lg font-semibold">Project Details</h2>
+      <div class="flex justify-between items-center w-full">
+        <h2 class="text-lg font-semibold">Project Details</h2>
+      </div>
     </template>
 
     <template #body>
@@ -220,12 +320,11 @@ function openViewDialog(project) {
         <!-- Description -->
         <div>
           <p class="font-medium text-gray-600 dark:text-gray-300 mb-1">Description</p>
-          <textarea
-            class="w-full p-2 border rounded-md text-sm bg-gray-50 dark:bg-gray-900 dark:text-white"
-            rows="4"
-            readonly
-            >{{ viewProject.description || "—" }}</textarea
+          <div
+            class="w-full p-2 border rounded-md text-sm bg-gray-50 dark:bg-gray-900 dark:text-white min-h-[100px]"
           >
+            {{ viewProject.description || "—" }}
+          </div>
         </div>
 
         <!-- Status & Starred -->
@@ -237,13 +336,12 @@ function openViewDialog(project) {
               :class="{
                 'bg-blue-100 text-blue-700': viewProject.status === 'inprogress',
                 'bg-green-100 text-green-700': viewProject.status === 'completed',
-                'bg-red-100 text-red-700': viewProject.status === 'aborted',
+                'bg-red-100 text-red-700': viewProject.status === 'cancelled',
               }"
             >
-              {{ viewProject.status }}
+              {{ formatStatus(viewProject.status) }}
             </span>
           </div>
-
           <div>
             <p class="font-medium text-gray-600 dark:text-gray-300">Starred</p>
             <span
