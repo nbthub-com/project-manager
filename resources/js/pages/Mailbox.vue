@@ -5,7 +5,6 @@ import { router, useForm, usePage } from "@inertiajs/vue3";
 import { Head } from "@inertiajs/vue3";
 import { Circle, CircleX, Delete, Edit, Eye, FileCheck, FileWarning, Info, LucideInbox, Plus, RefreshCwIcon } from "lucide-vue-next";
 import { defineProps, ref, watch, computed } from "vue";
-// Fix: Check the correct path for Dialog component
 import Dialog from "@/components/ui/simpleidalog/Dialog.vue";
 import { cn } from "@/lib/utils";
 import Select from "@/components/ui/select/Select.vue";
@@ -22,6 +21,7 @@ const disabled = ref(false);
 watch(() => props.inbox, (newInbox) => {
   inbox.value = [...newInbox];
 }, { deep: true });
+
 watch(() => props.outbox, (newOutbox) => {
   outbox.value = [...newOutbox];
 }, { deep: true });
@@ -38,6 +38,11 @@ const breadcrumbs = [{ title: 'MailBox', href: '/mailbox' }];
 const page = usePage();
 const id = computed(() => page.props.auth.user.id);
 
+// Format names for select options
+const nameOptions = computed(() => {
+  return props.names.map(name => ({ label: name.toUpperCase(), value: name }));
+});
+
 // New message form
 const form = useForm({
   to_user: "",
@@ -47,7 +52,7 @@ const form = useForm({
   scope: "local",
 });
 
-// Edit form with is_starred field
+// Edit form
 const editForm = useForm({
   id: "",
   to_user: "",
@@ -56,6 +61,20 @@ const editForm = useForm({
   type: "normal",
   scope: "local",
 });
+
+// Message type options
+const typeOptions = [
+  { label: 'Normal', value: 'normal' },
+  { label: 'Urgent', value: 'urgent' },
+  { label: 'Positive', value: 'positive' },
+  { label: 'Negative', value: 'negative' },
+];
+
+// Scope options
+const scopeOptions = [
+  { label: 'Local', value: 'local' },
+  { label: 'Global', value: 'global' },
+];
 
 // Send new message
 function submitMessage() {
@@ -89,13 +108,12 @@ function refresh() {
 function openMessage(item, box) {
   selectedMessage.value = item;
   readDialog.value = true;
-
   // Mark as read when opened
-  if (item.is_read === 0 && box === 'inbox') { // Check for integer 0
+  if (item.is_read === 0 && box === 'inbox') {
     axios.patch(`/mailbox/update/read/${item.id}`)
       .then(response => {
         if (response.status === 200) {
-          item.is_read = 1; // Set to integer 1
+          item.is_read = 1;
         }
       })
       .catch(error => {
@@ -133,12 +151,7 @@ function deleteMessage(id) {
 
 // Update message
 function updateMessage() {
-  // Convert boolean to integer before sending
-  const formData = {
-    ...editForm.data(),
-  };
   editForm.put(`/mailbox/update/${editForm.id}`, {
-    data: formData,
     preserveScroll: true,
     onSuccess: (page) => {
       editDialog.value = false;
@@ -274,21 +287,21 @@ function updateMessage() {
               size="sm"
               variant="ghost"
               @click="openMessage(item, ['inbox', 'outbox'][tab])"
-              ><Eye
+            ><Eye
             /></Button>
             <Button
               size="sm"
               variant="ghost"
               @click="openEditDialog(item)"
               v-if="tab === 1"
-              ><Edit
+            ><Edit
             /></Button>
             <Button
               size="sm"
               variant="ghost"
               v-if="tab === 1"
               @click="deleteMessage(item.id)"
-              ><Delete
+            ><Delete
             /></Button>
           </div>
         </div>
@@ -305,18 +318,10 @@ function updateMessage() {
             <span>Recipient</span>
             <Select
               v-model="form.to_user"
+              :options="nameOptions"
               :disabled="form.scope !== 'local'"
               class="border rounded w-full p-1"
-            >
-              <option
-                v-for="(item, index) in props.names"
-                :key="index"
-                :value="item"
-                class="bg-white text-black dark:bg-black dark:text-white"
-              >
-                {{ item.toUpperCase() }}
-              </option>
-            </Select>
+            />
             <InputError :message="form.errors.to_user" />
           </label>
           <label class="block">
@@ -331,50 +336,20 @@ function updateMessage() {
           </label>
           <label class="block">
             <span>Type</span>
-            <Select v-model="form.type" class="border rounded w-full p-1">
-              <option
-                value="normal"
-                class="bg-white text-gray-950 dark:text-white dark:bg-black"
-              >
-                Normal
-              </option>
-              <option
-                value="urgent"
-                class="bg-white text-yellow-600 dark:text-yellow-400 dark:bg-black"
-              >
-                Urgent
-              </option>
-              <option
-                value="positive"
-                class="bg-white text-green-600 dark:text-green-400 dark:bg-black"
-              >
-                Positive
-              </option>
-              <option
-                value="negative"
-                class="bg-white text-red-600 dark:text-red-400 dark:bg-black"
-              >
-                Negative
-              </option>
-            </Select>
+            <Select 
+              v-model="form.type" 
+              :options="typeOptions"
+              class="border rounded w-full p-1" 
+            />
             <InputError :message="form.errors.type" />
           </label>
           <label class="block">
             <span>Scope</span>
-            <Select v-model="form.scope" class="border rounded w-full p-1">
-              <option
-                class="bg-white text-black dark:bg-black dark:text-white"
-                value="local"
-              >
-                Local
-              </option>
-              <option
-                class="bg-white text-black dark:bg-black dark:text-white"
-                value="global"
-              >
-                Global
-              </option>
-            </Select>
+            <Select 
+              v-model="form.scope" 
+              :options="scopeOptions"
+              class="border rounded w-full p-1" 
+            />
             <InputError :message="form.errors.scope" />
           </label>
         </div>
@@ -442,21 +417,12 @@ function updateMessage() {
         <div class="space-y-2">
           <label class="block">
             <span>Recipient</span>
-            <!-- Fixed: Removed type="text" attribute -->
             <Select
               v-model="editForm.to_user"
-              class="border rounded w-full p-1"
+              :options="nameOptions"
               :disabled="editForm.scope === 'global'"
-            >
-              <option
-                v-for="(item, index) in props.names"
-                :key="index"
-                :value="item"
-                class="bg-white text-black dark:bg-black dark:text-white"
-              >
-                {{ item.toUpperCase() }}
-              </option>
-            </Select>
+              class="border rounded w-full p-1"
+            />
             <InputError :message="editForm.errors.to_user" />
           </label>
           <label class="block">
@@ -478,50 +444,20 @@ function updateMessage() {
           </label>
           <label class="block">
             <span>Type</span>
-            <Select v-model="editForm.type" class="border rounded w-full p-1">
-              <option
-                class="bg-white text-black dark:bg-black dark:text-white"
-                value="normal"
-              >
-                Normal
-              </option>
-              <option
-                class="bg-white text-black dark:bg-black dark:text-white"
-                value="urgent"
-              >
-                Urgent
-              </option>
-              <option
-                class="bg-white text-black dark:bg-black dark:text-white"
-                value="positive"
-              >
-                Positive
-              </option>
-              <option
-                class="bg-white text-black dark:bg-black dark:text-white"
-                value="negative"
-              >
-                Negative
-              </option>
-            </Select>
+            <Select 
+              v-model="editForm.type" 
+              :options="typeOptions"
+              class="border rounded w-full p-1" 
+            />
             <InputError :message="editForm.errors.type" />
           </label>
           <label class="block">
             <span>Scope</span>
-            <Select v-model="editForm.scope" class="border rounded w-full p-1">
-              <option
-                class="bg-white text-black dark:bg-black dark:text-white"
-                value="local"
-              >
-                Local
-              </option>
-              <option
-                class="bg-white text-black dark:bg-black dark:text-white"
-                value="global"
-              >
-                Global
-              </option>
-            </Select>
+            <Select 
+              v-model="editForm.scope" 
+              :options="scopeOptions"
+              class="border rounded w-full p-1" 
+            />
             <InputError :message="editForm.errors.scope" />
           </label>
         </div>

@@ -31,7 +31,7 @@ class ProjectsController extends Controller
     {
         $validated = $request->validate([
             'title' => 'required|min:3|string',
-            'manager' => 'required|string|exists:users,name', // Added exists validation
+            'manager' => 'required|string|exists:users,name',
             'description' => 'nullable|string',
             'is_starred' => 'nullable|boolean',
         ]);
@@ -49,7 +49,7 @@ class ProjectsController extends Controller
             'manager_id' => $manager_id,
             'description' => $validated['description'] ?? '',
             'is_starred' => $validated['is_starred'] ?? false,
-            'status' => 'inprogress'
+            'status' => 'in_progress'
         ]);
 
         return redirect()->route('admin.projects')
@@ -63,7 +63,7 @@ class ProjectsController extends Controller
             'manager' => 'required|string|exists:users,name', // Added exists validation
             'description' => 'nullable|string',
             'is_starred' => 'nullable|boolean',
-            'status' => 'required|in:inprogress,completed,cancelled'
+            'status' => 'required|in:in_progress,completed,cancelled'
         ]);
 
         $project = ProjectsModel::findOrFail($id);

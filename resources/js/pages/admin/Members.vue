@@ -1,70 +1,88 @@
-<script setup lang="js">
-import { Head } from "@inertiajs/vue3";
-import { defineProps, ref, reactive } from "vue";
+<script setup>
+import { Head, useForm, router } from "@inertiajs/vue3";
+import { ref, reactive, watch } from "vue";
 import AppLayout from "@/layouts/AppLayout.vue";
 import Dialog from "@/components/ui/simpleidalog/Dialog.vue";
 import Button from "@/components/ui/button/Button.vue";
 import InputError from "@/components/InputError.vue";
 import Input from "@/components/ui/input/Input.vue";
 import { Search } from "lucide-vue-next";
-import axios from "axios";
-import { useInitials } from '@/composables/useInitials';
+import { useInitials } from "@/composables/useInitials";
 
 const { getInitials } = useInitials();
 
-const props = defineProps(["users"]);
-const s_query = ref("");
-const filteredUsers = ref([...props.users]);
+const props = defineProps({
+  users: Array,
+});
 
 const breadcrumbs = [{ title: "Members", href: "/admin/members" }];
 
-// Add dialog state for view
+// 🔑 local state
+const s_query = ref("");
+const usersList = ref([...props.users]);
+const filteredUsers = ref([...props.users]);
+
+watch(
+  () => props.users,
+  (newUsers) => {
+    usersList.value = [...newUsers];
+    search();
+  },
+  { deep: true }
+);
+
+watch(s_query, () => search());
+
+function search() {
+  if (!s_query.value.trim()) {
+    filteredUsers.value = [...usersList.value];
+    return;
+  }
+  const q = s_query.value.toLowerCase();
+  filteredUsers.value = usersList.value.filter(
+    (u) => u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q)
+  );
+}
+
+// dialogs
 const isDialogOpen = ref(false);
 const isViewDialogOpen = ref(false);
 const selectedUser = ref(null);
 
-const form = reactive({
+// form
+const form = useForm({
   name: "",
   email: "",
   password: "",
   password_confirmation: "",
-  errors: {}, // store validation errors
+  role: "user",
 });
 
-async function submitForm() {
-  try {
-    await axios.post("/admin/members/add-member", {
-      name: form.name,
-      email: form.email,
-      role: "user",
-      password: form.password,
-      password_confirmation: form.password_confirmation,
+// create
+function submitForm() {
+  form.post("/admin/members/add-member", {
+    onSuccess: (page) => {
+      usersList.value = page.props.users;
+      search();
+      isDialogOpen.value = false;
+      form.reset();
+    },
+  });
+}
+
+// delete
+function deleteUser(id) {
+  if (confirm("Are you sure you want to delete this user?")) {
+    router.delete(`/admin/members/delete/${id}`, {
+      onSuccess: (page) => {
+        usersList.value = page.props.users;
+        search();
+      },
     });
-    window.location.href = "/admin/members";
-  } catch (error) {
-    if (error.response?.status === 422) {
-      form.errors = error.response.data.errors;
-    } else {
-      console.error(error);
-    }
   }
 }
 
-async function search() {
-  if (!s_query.value) {
-    filteredUsers.value = [...props.users];
-    return;
-  }
-
-  try {
-    const res = await axios.get(`/admin/search/${s_query.value}`);
-    filteredUsers.value = res.data;
-  } catch (err) {
-    console.error(err);
-  }
-}
-
-// open view dialog
+// view
 function openView(user) {
   selectedUser.value = user;
   isViewDialogOpen.value = true;
@@ -95,7 +113,11 @@ function openView(user) {
       </div>
 
       <!-- Members Grid -->
-      <div class="grid gap-6 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+      <!-- Members Grid -->
+      <div
+        v-if="filteredUsers.length > 0"
+        class="grid gap-6 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4"
+      >
         <div
           v-for="user in filteredUsers"
           :key="user.id"
@@ -108,7 +130,7 @@ function openView(user) {
             <h3 class="text-lg font-bold truncate">{{ user.name }}</h3>
             <button
               class="text-red-200 hover:text-red-400 cursor-pointer text-sm"
-              @click="console.log('delete user', user.id)"
+              @click="deleteUser(user.id)"
               title="Delete user"
             >
               ✕
@@ -134,6 +156,33 @@ function openView(user) {
           </div>
         </div>
       </div>
+
+      <!-- Empty State -->
+      <template v-else>
+        <div
+            class="col-span-full flex flex-col items-center justify-center py-16 text-gray-500 dark:text-gray-400"
+        >
+          <p class="text-lg font-medium">No Members found</p>
+          <p class="text-sm opacity-80">
+            {{
+              s_query
+                ? "Try adjusting your search terms."
+                : "Looks like there are no tasks yet."
+            }}
+          </p>
+          <Button
+            @click="
+              () => {
+                isDialogOpen = true;
+                form.reset();
+              }
+            "
+            class="m-3"
+          >
+            + Add First Member
+          </Button>
+        </div>
+      </template>
 
       <!-- Add Member Dialog -->
       <Dialog v-model="isDialogOpen">

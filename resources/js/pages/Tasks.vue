@@ -19,19 +19,32 @@ const props = defineProps({
 });
 
 const user = usePage().props.auth.user;
-const name = user.name;
-// Search
+
+// 🔑 Local reactive state
 const s_query = ref("");
+const tasksList = ref([...props.tasks]);
 const filteredTasks = ref([...props.tasks]);
+
+// keep local list in sync with server props
+watch(
+  () => props.tasks,
+  (newTasks) => {
+    tasksList.value = [...newTasks];
+    search();
+  },
+  { deep: true }
+);
+
+// search handling
 watch(s_query, () => search());
 
 function search() {
   if (!s_query.value.trim()) {
-    filteredTasks.value = [...props.tasks];
+    filteredTasks.value = [...tasksList.value];
     return;
   }
   const q = s_query.value.toLowerCase();
-  filteredTasks.value = props.tasks.filter(
+  filteredTasks.value = tasksList.value.filter(
     (task) =>
       task.title.toLowerCase().includes(q) ||
       task.manager?.toLowerCase().includes(q) ||
@@ -40,15 +53,14 @@ function search() {
   );
 }
 
-// Dialog state
+// dialogs
 const isDialogOpen = ref(false);
 const isEditMode = ref(false);
 const editId = ref(null);
-
 const isViewDialogOpen = ref(false);
 const viewTask = ref(null);
 
-// Form
+// form
 const form = useForm({
   title: "",
   description: "",
@@ -58,54 +70,62 @@ const form = useForm({
   role_title: "frontend-developer",
 });
 
-// Create or update
+// create / update
 function submitForm() {
   if (isEditMode.value && editId.value) {
     form.put(`/tasks/update/${editId.value}`, {
-      onSuccess: () => {
+      onSuccess: (page) => {
+        tasksList.value = page.props.tasks;
+        search();
         isDialogOpen.value = false;
-        router.visit("/tasks");
+        form.reset();
       },
     });
   } else {
     form.post("/tasks/create", {
-      onSuccess: () => {
+      onSuccess: (page) => {
+        tasksList.value = page.props.tasks;
+        search();
         isDialogOpen.value = false;
-        router.visit("/tasks");
+        form.reset();
       },
     });
   }
 }
 
-// Edit
+// edit
 function editTask(task) {
   isEditMode.value = true;
   editId.value = task.id;
   form.title = task.title;
   form.description = task.description;
   form.to_id = props.names.find((u) => u.name === task.assignee)?.id || "";
-  form.project_id = props.manager_of.find((p) => p.title === task.project)?.id || "";
+  form.project_id =
+    props.manager_of.find((p) => p.title === task.project)?.id || "";
   form.status = task.status;
   form.role_title = task.role_title || "frontend-developer";
   isDialogOpen.value = true;
 }
 
-// Delete
+// delete
 function deleteTask(id) {
   if (confirm("Are you sure you want to delete this task?")) {
     router.delete(`/tasks/delete/${id}`, {
-      onSuccess: () => {
-        router.visit("/tasks");
+      onSuccess: (page) => {
+        tasksList.value = page.props.tasks;
+        search();
       },
     });
   }
 }
 
-// View
+// view
 function openViewDialog(task) {
   viewTask.value = task;
   isViewDialogOpen.value = true;
 }
+
+// role options
 const defaultRoles = [
   { label: "Frontend Developer", value: "frontend-developer" },
   { label: "Backend Developer", value: "backend-developer" },
@@ -123,15 +143,11 @@ const roleOptions = props.roles
     const formatted = r
       .trim()
       .replace(/-/g, " ")
-      .replace(/\b\w/g, (c) => c.toUpperCase()); // Title Case
+      .replace(/\b\w/g, (c) => c.toUpperCase());
 
-    return {
-      label: formatted,
-      value: r.trim(),
-    };
+    return { label: formatted, value: r.trim() };
   });
 
-// Merge + deduplicate by `value`
 const options = [
   ...roleOptions,
   ...defaultRoles.filter((def) => !roleOptions.some((opt) => opt.value === def.value)),
@@ -262,20 +278,6 @@ const options = [
           <div
             class="col-span-full flex flex-col items-center justify-center py-12 px-4 text-center text-gray-500 dark:text-gray-400"
           >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              class="w-16 h-16 mb-4 text-gray-400 dark:text-gray-600"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              stroke-width="1.5"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                d="M9 12h6m2 0a2 2 0 11-4 0 2 2 0 014 0zm0 0v7m-8-7a2 2 0 11-4 0 2 2 0 014 0zm0 0v7m0-12V5a2 2 0 012-2h4a2 2 0 012 2v2"
-              />
-            </svg>
             <p class="text-lg font-medium">No tasks found</p>
             <p class="text-sm opacity-80">
               {{

@@ -25,7 +25,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from "vue"
+import { ref, computed, onMounted } from "vue"
 
 const notifications = ref([])
 
@@ -40,10 +40,11 @@ const position = ref("top-right")
 const positionClass = computed(() => positions[position.value] || positions["top-right"])
 
 function show({ message, color = "bg-blue-600", icon = null, timeout = 3000, dismissable = true, pos = "top-right" }) {
+  console.log("Notification.show called with:", message)
   position.value = pos
   const id = Date.now()
   notifications.value.push({ id, message, color, icon, dismissable })
-
+  
   if (timeout) {
     setTimeout(() => dismiss(id), timeout)
   }
@@ -55,6 +56,11 @@ function dismiss(id) {
 
 // Expose globally
 defineExpose({ show })
+
+// Debug: Log when component is mounted
+onMounted(() => {
+  console.log("Notification component mounted")
+})
 </script>
 
 <style scoped>

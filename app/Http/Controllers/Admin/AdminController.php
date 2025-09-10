@@ -1,7 +1,5 @@
 <?php
-
 namespace App\Http\Controllers\Admin;
-
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use App\Models\User;
@@ -14,57 +12,106 @@ class AdminController extends Controller
 {
     public function index()
     {
-        // Simply send all users and managers for dashboard display
-        $users = User::where('role', 'user')->count();
+        // === Users ===
+        $totalMembers   = User::where('role', 'user')->count();
+        $totalManagers  = User::where('role', 'manager')->count();
+
+        // === Top 5 Members with most tasks ===
+        $topMembers = User::where('role', 'user')
+            ->withCount('assignedTasks') // correct relation
+            ->orderByDesc('assigned_tasks_count')
+            ->take(5)
+            ->get(['id', 'name', 'email']);
+
+        // === Top 5 Managers with most projects ===
+        $topManagers = User::where('role', 'manager')
+            ->withCount('managedProjects') // correct relation
+            ->orderByDesc('managed_projects_count')
+            ->take(5)
+            ->get(['id', 'name', 'email']);
+
+        // === Projects ===
+        $totalProjects     = ProjectsModel::count();
+        $runningProjects   = ProjectsModel::where('status', 'in_progress')->count();
+        $completedProjects = ProjectsModel::where('status', 'completed')->count();
+        $cancelledProjects = ProjectsModel::where('status', 'cancelled')->count();
+
+        // === Tasks ===
+        $totalTasks     = TasksModel::count();
+        $pendingTasks   = TasksModel::where('status', 'pending')->count();
+        $runningTasks   = TasksModel::where('status', 'in_progress')->count();
+        $completedTasks = TasksModel::where('status', 'completed')->count();
+        $cancelledTasks = TasksModel::where('status', 'cancelled')->count();
+
         return Inertia::render('admin/Dashboard', [
             'stats' => [
-                'user_count' => $users ?? 0,
+                'members' => [
+                    'total'    => $totalMembers,
+                    'managers' => $totalManagers,
+                ],
+                'top' => [
+                    'members'  => $topMembers,
+                    'managers' => $topManagers,
+                ],
+                'projects' => [
+                    'total'     => $totalProjects,
+                    'running'   => $runningProjects,
+                    'completed' => $completedProjects,
+                    'cancelled' => $cancelledProjects,
+                ],
+                'tasks' => [
+                    'total'     => $totalTasks,
+                    'pending'   => $pendingTasks,
+                    'running'   => $runningTasks,
+                    'completed' => $completedTasks,
+                    'cancelled' => $cancelledTasks,
+                ],
             ],
         ]);
     }
-
+    // Helper method to get user data with stats
+    private function getUserData()
+    {
+        return User::where('role', '!=', 'admin')
+            ->orderBy('id', 'desc')
+            ->get(['id', 'name', 'email'])
+            ->map(function ($user) {
+                // Projects managed
+                $projectsAssigned = ProjectsModel::where('manager_id', $user->id)->count();
+                $projectsDone = ProjectsModel::where('manager_id', $user->id)
+                    ->where('status', 'completed')
+                    ->count();
+                // Tasks assigned to the user
+                $tasksAssigned = TasksModel::where('to_id', $user->id)->count();
+                $tasksDone = TasksModel::where('to_id', $user->id)
+                    ->where('status', 'completed')
+                    ->count();
+                // Roles in projects (grab distinct role_title from tasks table)
+                $roles = TasksModel::where('to_id', $user->id)
+                    ->distinct()
+                    ->pluck('role_title')
+                    ->toArray();
+                    
+                return [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'projects_assigned' => $projectsAssigned,
+                    'projects_done' => $projectsDone,
+                    'tasks_assigned' => $tasksAssigned,
+                    'tasks_done' => $tasksDone,
+                    'roles' => $roles,
+                ];
+            });
+    }
+    
     public function view_mems()
     {
-        $users = User::where('role', '!=', 'admin')
-            ->orderBy('id', 'desc')
-            ->get(['id', 'name', 'email']);
-
-        $users = $users->map(function ($user) {
-            // Projects managed
-            $projectsAssigned = ProjectsModel::where('manager_id', $user->id)->count();
-            $projectsDone = ProjectsModel::where('manager_id', $user->id)
-                ->where('status', 'completed')
-                ->count();
-
-            // Tasks assigned to the user
-            $tasksAssigned = TasksModel::where('to_id', $user->id)->count();
-            $tasksDone = TasksModel::where('to_id', $user->id)
-                ->where('status', 'completed')
-                ->count();
-
-            // Roles in projects (grab distinct role_title from tasks table)
-            $roles = TasksModel::where('to_id', $user->id)
-                ->distinct()
-                ->pluck('role_title')
-                ->toArray();
-
-            return [
-                'id' => $user->id,
-                'name' => $user->name,
-                'email' => $user->email,
-                'projects_assigned' => $projectsAssigned,
-                'projects_done' => $projectsDone,
-                'tasks_assigned' => $tasksAssigned,
-                'tasks_done' => $tasksDone,
-                'roles' => $roles,
-            ];
-        });
-
         return Inertia::render('admin/Members', [
-            'users' => $users,
+            'users' => $this->getUserData(),
         ]);
     }
-
+    
     public function add_mem(Request $request)
     {
         // Normalize values before validation
@@ -73,7 +120,7 @@ class AdminController extends Controller
             'email' => strtolower($request->email),
             'role' => strtolower($request->role),
         ]);
-
+        
         // Validate with case-insensitive uniqueness
         $validated = $request->validate([
             'name' => [
@@ -97,7 +144,7 @@ class AdminController extends Controller
             'role' => 'required|in:user',
             'password' => 'required|min:6',
         ]);
-
+        
         // Create user
         $user = User::create([
             'name' => $validated['name'],
@@ -105,17 +152,27 @@ class AdminController extends Controller
             'role' => $validated['role'],
             'password' => Hash::make($validated['password']),
         ]);
-
-        return response()->json([
-            'user' => $user,
-        ], 201);
+        
+        // Return Inertia response with updated users and flash message
+        return redirect()->route('members.view')->with('success', 'Member added successfully!');
     }
+    
+    public function delete_mem($id)
+    {
+        $user = User::findOrFail($id);
+        $user->delete();
+        
+        // Return Inertia response with updated users and flash message
+        return redirect()->route('members.view')->with('success', 'Member deleted successfully!');
+    }
+    
     public function search($query)
     {
         $query = strtolower($query);
         if(!$query){
             return redirect()->route('members.view');
         }
+        
         $users = User::where('role', '!=', 'admin')
             ->where(function($q) use ($query) {
                 $q->whereRaw('LOWER(name) LIKE ?', ["%{$query}%"])
@@ -123,7 +180,37 @@ class AdminController extends Controller
             })
             ->orderBy('id', 'desc')
             ->get(['id', 'name', 'email', 'role']);
-
+            
+        // Map users to include stats
+        $users = $users->map(function ($user) {
+            // Projects managed
+            $projectsAssigned = ProjectsModel::where('manager_id', $user->id)->count();
+            $projectsDone = ProjectsModel::where('manager_id', $user->id)
+                ->where('status', 'completed')
+                ->count();
+            // Tasks assigned to the user
+            $tasksAssigned = TasksModel::where('to_id', $user->id)->count();
+            $tasksDone = TasksModel::where('to_id', $user->id)
+                ->where('status', 'completed')
+                ->count();
+            // Roles in projects (grab distinct role_title from tasks table)
+            $roles = TasksModel::where('to_id', $user->id)
+                ->distinct()
+                ->pluck('role_title')
+                ->toArray();
+                
+            return [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'projects_assigned' => $projectsAssigned,
+                'projects_done' => $projectsDone,
+                'tasks_assigned' => $tasksAssigned,
+                'tasks_done' => $tasksDone,
+                'roles' => $roles,
+            ];
+        });
+        
         return response()->json($users);
     }
 }
