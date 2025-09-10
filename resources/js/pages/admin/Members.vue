@@ -94,7 +94,7 @@ function openView(user) {
   <Head title="Members" />
 
   <AppLayout :breadcrumbs="breadcrumbs">
-    <div class="flex flex-col p-2 gap-6">
+    <div class="flex flex-col p-2">
       <!-- Search + Add -->
       <div
         class="border-b-2 flex flex-row justify-between p-1 items-center gap-2 rounded-lg"
@@ -114,15 +114,14 @@ function openView(user) {
       </div>
 
       <!-- Members Grid -->
-      <!-- Members Grid -->
       <div
         v-if="filteredUsers.length > 0"
-        class="grid gap-6 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4"
+        class="grid gap-6 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 p-3"
       >
         <div
           v-for="user in filteredUsers"
           :key="user.id"
-          class="p-5 rounded-xl shadow-lg text-white bg-gradient-to-br from-primary to-secondary transition transform hover:scale-[1.02] hover:shadow-xl flex flex-col justify-between"
+            class="p-4 rounded-xl shadow-lg text-white bg-gradient-to-br from-[#5a248a] to-secondary transition transform hover:scale-[1.02] hover:shadow-xl flex flex-col justify-between"
         >
           <!-- Header -->
           <div
