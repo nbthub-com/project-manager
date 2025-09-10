@@ -8,6 +8,7 @@ import InputError from "@/components/InputError.vue";
 import Input from "@/components/ui/input/Input.vue";
 import { Search } from "lucide-vue-next";
 import { useInitials } from "@/composables/useInitials";
+import Label from "@/components/ui/label/Label.vue";
 
 const { getInitials } = useInitials();
 
@@ -191,15 +192,19 @@ function openView(user) {
         </template>
         <template #body>
           <form @submit.prevent="submitForm" class="flex flex-col gap-2">
+            <Label>Name</Label>
             <Input v-model="form.name" placeholder="Name" />
             <InputError :message="form.errors.name" class="text-red-500" />
 
+            <Label>Email</Label>
             <Input v-model="form.email" placeholder="Email" />
             <InputError :message="form.errors.email" class="text-red-500" />
 
+            <Label>Password</Label>
             <Input type="password" v-model="form.password" placeholder="Password" />
             <InputError :message="form.errors.password" class="text-red-500" />
 
+            <Label>Confirm Password</Label>
             <Input
               type="password"
               v-model="form.password_confirmation"
