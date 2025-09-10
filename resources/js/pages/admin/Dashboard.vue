@@ -132,13 +132,13 @@ defineProps<{ stats: Stats }>();
       </div>
 
       <!-- Projects & Tasks Progress -->
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-4">
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
         <!-- Projects Progress -->
         <div
-          class="lg:col-span-2 group relative overflow-hidden rounded-2xl shadow-xl transition-all duration-500 hover:shadow-2xl hover:-translate-y-1"
+          class="lg:col-span-1 group relative overflow-hidden rounded-2xl shadow-xl transition-all duration-500 hover:shadow-2xl hover:-translate-y-1"
         >
           <div
-            class="absolute inset-0 bg-gradient-to-br from-orange-600 to-orange-950 opacity-90"
+            class="absolute inset-0 bg-gradient-to-br from-purple-600 to-purple-950 opacity-90"
           ></div>
           <div class="relative p-4 text-white">
             <div class="flex items-center justify-between mb-4">
