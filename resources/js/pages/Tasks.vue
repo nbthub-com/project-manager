@@ -157,7 +157,7 @@ const options = [
 <template>
   <Head title="Tasks" />
   <AppLayout :breadcrumbs="breadcrumbs">
-    <div class="flex flex-col p-2 gap-6">
+    <div class="flex flex-col p-2">
       <!-- Search + New -->
       <div
         class="border-b-2 flex flex-row justify-between p-1 items-center gap-2 rounded-lg"
@@ -188,7 +188,7 @@ const options = [
 
       <!-- Tasks Grid -->
       <div
-        class="grid gap-6 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 px-3"
+        class="grid gap-6 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 p-3"
       >
         <template v-if="filteredTasks.length">
           <div
