@@ -36,14 +36,14 @@ const mainNavItems = computed<NavItem[]>(() => {
 
   if (page.props.auth?.user?.role === 'admin') {
     items.push({
-      title: 'Members',
-      href: '/admin/members',
-      icon: Person,
-    });
-    items.push({
       title: 'Projects',
       href: '/admin/projects',
       icon: Package,
+    });
+    items.push({
+      title: 'Members',
+      href: '/admin/members',
+      icon: Person,
     });
   }
   items.push({
