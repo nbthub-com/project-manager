@@ -46,7 +46,7 @@ defineProps<{ stats: Stats }>();
       <!-- Stats Cards -->
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <!-- Tasks Card -->
-        <div class="group relative overflow-hidden rounded-2xl shadow-xl transition-all duration-500 hover:shadow-2xl hover:-translate-y-1">
+        <div class="group relative overflow-hidden rounded-2xl transition-all duration-500 hover:shadow-2xl hover:-translate-y-1">
           <div class="absolute inset-0 bg-gradient-to-br from-purple-600 to-purple-950 opacity-90"></div>
           <div class="relative p-4 text-white">
             <div class="flex items-center justify-between mb-4">
@@ -86,7 +86,7 @@ defineProps<{ stats: Stats }>();
         </div>
         
         <!-- Projects Card -->
-        <div class="group relative overflow-hidden rounded-2xl shadow-xl transition-all duration-500 hover:shadow-2xl hover:-translate-y-1">
+        <div class="group relative overflow-hidden rounded-2xl transition-all duration-500 hover:shadow-2xl hover:-translate-y-1">
           <div class="absolute inset-0 bg-gradient-to-br from-green-600 to-green-950 opacity-90"></div>
           <div class="relative p-4 text-white">
             <div class="flex items-center justify-between mb-4">
@@ -129,7 +129,7 @@ defineProps<{ stats: Stats }>();
       <!-- Progress Bars -->
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <!-- Tasks Progress -->
-        <div class="group relative overflow-hidden rounded-2xl shadow-xl transition-all duration-500 hover:shadow-2xl hover:-translate-y-1">
+        <div class="group relative overflow-hidden rounded-2xl transition-all duration-500 hover:shadow-2xl hover:-translate-y-1">
           <div class="absolute inset-0 bg-gradient-to-br from-blue-600 to-blue-950 opacity-90"></div>
           <div class="relative p-4 text-white">
             <div class="flex items-center justify-between mb-4">
@@ -185,7 +185,7 @@ defineProps<{ stats: Stats }>();
         </div>
         
         <!-- Projects Progress -->
-        <div class="group relative overflow-hidden rounded-2xl shadow-xl transition-all duration-500 hover:shadow-2xl hover:-translate-y-1">
+        <div class="group relative overflow-hidden rounded-2xl transition-all duration-500 hover:shadow-2xl hover:-translate-y-1">
           <div class="absolute inset-0 bg-gradient-to-br from-orange-600 to-orange-950 opacity-90"></div>
           <div class="relative p-4 text-white">
             <div class="flex items-center justify-between mb-4">

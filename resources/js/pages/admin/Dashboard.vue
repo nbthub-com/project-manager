@@ -44,7 +44,7 @@ defineProps<{ stats: Stats }>();
       <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <!-- Total Members -->
         <div
-          class="group relative overflow-hidden rounded-2xl shadow-xl transition-all duration-500 hover:shadow-2xl hover:-translate-y-1"
+          class="group relative overflow-hidden rounded-2xl transition-all duration-500 hover:shadow-2xl hover:-translate-y-1"
         >
           <div
             class="absolute inset-0 bg-gradient-to-br from-[#5a248a] to-[#8a4fc2] opacity-90"
@@ -66,7 +66,7 @@ defineProps<{ stats: Stats }>();
 
         <!-- Total Managers -->
         <div
-          class="group relative overflow-hidden rounded-2xl shadow-xl transition-all duration-500 hover:shadow-2xl hover:-translate-y-1"
+          class="group relative overflow-hidden rounded-2xl transition-all duration-500 hover:shadow-2xl hover:-translate-y-1"
         >
           <div
             class="absolute inset-0 bg-gradient-to-br from-[#3b82f6] to-[#60a5fa] opacity-90"
@@ -88,7 +88,7 @@ defineProps<{ stats: Stats }>();
 
         <!-- Total Projects -->
         <div
-          class="group relative overflow-hidden rounded-2xl shadow-xl transition-all duration-500 hover:shadow-2xl hover:-translate-y-1"
+          class="group relative overflow-hidden rounded-2xl transition-all duration-500 hover:shadow-2xl hover:-translate-y-1"
         >
           <div
             class="absolute inset-0 bg-gradient-to-br from-[#10b981] to-[#34d399] opacity-90"
@@ -110,7 +110,7 @@ defineProps<{ stats: Stats }>();
 
         <!-- Total Tasks -->
         <div
-          class="group relative overflow-hidden rounded-2xl shadow-xl transition-all duration-500 hover:shadow-2xl hover:-translate-y-1"
+          class="group relative overflow-hidden rounded-2xl transition-all duration-500 hover:shadow-2xl hover:-translate-y-1"
         >
           <div
             class="absolute inset-0 bg-gradient-to-br from-[#f59e0b] to-[#fbbf24] opacity-90"
@@ -135,7 +135,7 @@ defineProps<{ stats: Stats }>();
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
         <!-- Projects Progress -->
         <div
-          class="lg:col-span-1 group relative overflow-hidden rounded-2xl shadow-xl transition-all duration-500 hover:shadow-2xl hover:-translate-y-1"
+          class="lg:col-span-1 group relative overflow-hidden rounded-2xl transition-all duration-500 hover:shadow-2xl hover:-translate-y-1"
         >
           <div
             class="absolute inset-0 bg-gradient-to-br from-purple-600 to-purple-950 opacity-90"
@@ -196,7 +196,7 @@ defineProps<{ stats: Stats }>();
 
         <!-- Tasks Progress -->
         <div
-          class="group relative overflow-hidden rounded-2xl shadow-xl transition-all duration-500 hover:shadow-2xl hover:-translate-y-1"
+          class="group relative overflow-hidden rounded-2xl transition-all duration-500 hover:shadow-2xl hover:-translate-y-1"
         >
           <div
             class="absolute inset-0 bg-gradient-to-br from-blue-600 to-blue-950 opacity-90"
