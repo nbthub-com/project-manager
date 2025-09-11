@@ -9,11 +9,12 @@ defineOptions({
 
 interface Props {
     className?: HTMLAttributes['class'];
+    size?: number;
 }
 
 defineProps<Props>();
 </script>
 
 <template>
-    <Projector :class="cn('text-black dark:text-white', className)" />
+    <Projector :class="cn('text-black dark:text-white', className)" :size="size"/>
 </template>
