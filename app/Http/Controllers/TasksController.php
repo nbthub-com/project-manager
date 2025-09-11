@@ -7,6 +7,7 @@ use App\Models\TasksModel;
 use App\Models\User;
 use Inertia\Inertia;
 use Illuminate\Support\Str;
+use App\Models\ProjectsModel;
 
 class TasksController extends Controller
 {
@@ -19,13 +20,21 @@ class TasksController extends Controller
             $tasks = TasksModel::with(['manager', 'assignee', 'project'])
                 ->latest()
                 ->get();
+
+            // Admin sees all projects
+            $managerOf = ProjectsModel::select('id', 'title')->get();
         } else {
             $tasks = TasksModel::with(['manager', 'assignee', 'project'])
                 ->where(function ($q) use ($user) {
                     $q->where('to_id', $user->id)
-                      ->orWhere('by_id', $user->id);
+                    ->orWhere('by_id', $user->id);
                 })
                 ->latest()
+                ->get();
+
+            // Regular users see only the projects they manage
+            $managerOf = $user->managedProjects()
+                ->select('id', 'title')
                 ->get();
         }
 
@@ -43,10 +52,6 @@ class TasksController extends Controller
                 'updated_at'  => $task->updated_at->toDateTimeString(),
             ];
         });
-
-        $managerOf = $user->managedProjects()
-            ->select('id', 'title')
-            ->get();
 
         $names = User::where('role', '!=', 'admin')
             ->select('id', 'name')
