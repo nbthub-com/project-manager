@@ -9,21 +9,56 @@ use App\Models\User;
 
 class ProjectsController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
+        $perPage = $request->input('per_page', 10);
+        $filterId = $request->input('filter_id');
+        $filterManager = $request->input('filter_manager');
+        $filterStatus = $request->input('filter_status');
+        $filterStarred = $request->input('filter_starred');
+        
+        // Start with base query
+        $query = ProjectsModel::select(
+            'projects.id',
+            'projects.title',
+            'users.name as manager_name',
+            'projects.description',
+            'projects.is_starred',
+            'projects.status'
+        )
+        ->leftJoin('users', 'projects.manager_id', '=', 'users.id')
+        ->orderBy('projects.id', 'desc');
+        
+        if ($filterId) {
+            $query->where('projects.id', $filterId);
+        }
+        if ($filterManager) {
+            $query->where('users.name', 'like', "%{$filterManager}%");
+        }
+        if ($filterStatus) {
+            $query->where('projects.status', $filterStatus);
+        }
+        if ($filterStarred !== null && $filterStarred !== '') {
+            $query->where('projects.is_starred', $filterStarred === 'true' || $filterStarred === '1');
+        }
+        
+        $projects = $query->paginate($perPage);
+        
+        $managers = User::orderBy('name')
+            ->pluck('name')
+            ->unique()
+            ->values();
+        
         return Inertia::render('admin/Projects', [
-            'projects' => ProjectsModel::select(
-                'projects.id',
-                'projects.title',
-                'users.name as manager_name',
-                'projects.description',
-                'projects.is_starred',
-                'projects.status'
-            )
-            ->leftJoin('users', 'projects.manager_id', '=', 'users.id')
-            ->orderBy('projects.id', 'desc')
-            ->get(),
-            'names' => User::pluck('name'),
+            'projects' => $projects,
+            'managers' => $managers,
+            'filters' => $request->only([
+                'filter_id', 
+                'filter_manager', 
+                'filter_status', 
+                'filter_starred',
+                'per_page'
+            ]),
         ]);
     }
 

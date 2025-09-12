@@ -201,7 +201,6 @@ const defaultRoles = [
   { label: "Fullstack Developer", value: "fullstack-developer" },
   { label: "Tester", value: "tester" },
   { label: "Designer", value: "designer" },
-  { label: "Project Manager", value: "project-manager" },
   { label: "DevOps Engineer", value: "devops-engineer" },
   { label: "Add +", value: null },
 ];
@@ -270,7 +269,7 @@ const projectOptions = computed(() => {
 <template>
   <Head title="Tasks" />
   <AppLayout :breadcrumbs="breadcrumbs">
-    <div class="flex flex-col px-2">
+    <div class="flex flex-col px-1">
       <div
         class="border-b-2 flex flex-row justify-between p-1 items-center gap-2"
       >

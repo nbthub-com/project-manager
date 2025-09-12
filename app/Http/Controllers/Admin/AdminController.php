@@ -70,48 +70,82 @@ class AdminController extends Controller
         ]);
     }
     // Helper method to get user data with stats
-    private function getUserData()
+    private function getUserData($request)
     {
-        return User::where('role', '!=', 'admin')
-            ->orderBy('id', 'desc')
-            ->get(['id', 'name', 'email'])
-            ->map(function ($user) {
-                // Projects managed
-                $projectsAssigned = ProjectsModel::where('manager_id', $user->id)->count();
-                $projectsDone = ProjectsModel::where('manager_id', $user->id)
-                    ->where('status', 'completed')
-                    ->count();
-                // Tasks assigned to the user
-                $tasksAssigned = TasksModel::where('to_id', $user->id)->count();
-                $tasksDone = TasksModel::where('to_id', $user->id)
-                    ->where('status', 'completed')
-                    ->count();
-                // Roles in projects (grab distinct role_title from tasks table)
-                $roles = TasksModel::where('to_id', $user->id)
-                    ->distinct()
-                    ->pluck('role_title')
-                    ->toArray();
-                    
-                return [
-                    'id' => $user->id,
-                    'name' => $user->name,
-                    'email' => $user->email,
-                    'projects_assigned' => $projectsAssigned,
-                    'projects_done' => $projectsDone,
-                    'tasks_assigned' => $tasksAssigned,
-                    'tasks_done' => $tasksDone,
-                    'roles' => $roles,
-                ];
-            });
+        $perPage = $request->input('per_page', 10);
+        $filterRole = $request->input('filter_role');
+        $filterId = $request->input('filter_id');
+        
+        // Start with base query
+        $query = User::where('role', '!=', 'admin')
+            ->orderBy('id', 'desc');
+        
+        // Apply ID filter if provided
+        if ($filterId) {
+            $query->where('id', $filterId);
+        }
+        
+        // Get paginated users
+        $users = $query->paginate($perPage);
+        
+        // Get distinct roles for filter dropdown
+        $roles = TasksModel::distinct()
+            ->pluck('role_title')
+            ->filter()
+            ->values()
+            ->toArray();
+        
+        // Map users with additional data
+        $mappedUsers = $users->getCollection()->map(function ($user) {
+            // Projects managed
+            $projectsAssigned = ProjectsModel::where('manager_id', $user->id)->count();
+            $projectsDone = ProjectsModel::where('manager_id', $user->id)
+                ->where('status', 'completed')
+                ->count();
+                
+            // Tasks assigned to the user
+            $tasksAssigned = TasksModel::where('to_id', $user->id)->count();
+            $tasksDone = TasksModel::where('to_id', $user->id)
+                ->where('status', 'completed')
+                ->count();
+                
+            // Roles in projects (grab distinct role_title from tasks table)
+            $userRoles = TasksModel::where('to_id', $user->id)
+                ->distinct()
+                ->pluck('role_title')
+                ->toArray();
+                
+            return [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'projects_assigned' => $projectsAssigned,
+                'projects_done' => $projectsDone,
+                'tasks_assigned' => $tasksAssigned,
+                'tasks_done' => $tasksDone,
+                'roles' => $userRoles,
+            ];
+        });
+        
+        // Set the mapped collection back to the paginator
+        $users->setCollection($mappedUsers);
+        
+        return [
+            'users' => $users,
+            'roles' => $roles,
+        ];
     }
-    
-    public function view_mems()
+
+    public function view_mems(Request $request)
     {
+        $data = $this->getUserData($request);
+        
         return Inertia::render('admin/Members', [
-            'users' => $this->getUserData(),
+            'users' => $data['users'],
+            'roles' => $data['roles'],
+            'filters' => $request->only(['filter_role', 'filter_id', 'per_page']),
         ]);
-    }
-    
+    }    
     public function add_mem(Request $request)
     {
         // Normalize values before validation
