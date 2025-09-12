@@ -8,13 +8,23 @@ use Illuminate\Support\Facades\Validator;
 
 class MailboxController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
         $user = auth()->user();
+        $perPage = $request->input('per_page', 10);
+        
+        // Get filter values
+        $filterId = $request->input('filter_id');
+        $filterFrom = $request->input('filter_from');
+        $filterTo = $request->input('filter_to');
+        $filterType = $request->input('filter_type');
+        $filterRead = $request->input('filter_read');
+        $filterScope = $request->input('filter_scope');
+        
         // Get inbox with user names
-        $inbox = MailboxModel::where(function ($query) use ($user) {
+        $inboxQuery = MailboxModel::where(function ($query) use ($user) {
                 $query->where('to_user_id', $user->id)
-                      ->orWhere('scope', 'global');
+                    ->orWhere('scope', 'global');
             })
             ->leftJoin('users as sender', 'sender.id', '=', 'mailbox.from_user_id')
             ->leftJoin('users as recipient', 'recipient.id', '=', 'mailbox.to_user_id')
@@ -30,21 +40,39 @@ class MailboxController extends Controller
                 'mailbox.created_at',
                 'sender.name as from_user_name',
                 'recipient.name as to_user_name'
-            )
-            ->orderBy('mailbox.created_at', 'desc')
-            ->get()
-            ->map(function ($item) use ($user) {
-                $item->from_display = $item->from_user_id === $user->id
-                    ? 'Me'
-                    : ($item->from_user_name ?? 'Unknown');
-                $item->to_display = $item->to_user_id === $user->id
-                    ? 'Me'
-                    : ($item->scope === 'global' ? 'Global' : ($item->to_user_name ?? 'Unknown'));
-                return $item;
+            );
+        
+        // Apply filters to inbox
+        if ($filterId) {
+            $inboxQuery->where('mailbox.id', $filterId);
+        }
+        if ($filterFrom) {
+            $inboxQuery->where('sender.name', 'like', "%{$filterFrom}%");
+        }
+        if ($filterTo) {
+            $inboxQuery->where(function($q) use ($filterTo) {
+                $q->where('recipient.name', 'like', "%{$filterTo}%")
+                ->orWhere(function($qq) use ($filterTo) {
+                    $qq->where('mailbox.scope', 'global')
+                        ->where('recipient.name', 'like', "%{$filterTo}%");
+                });
             });
-            
+        }
+        if ($filterType) {
+            $inboxQuery->where('mailbox.type', $filterType);
+        }
+        if ($filterRead !== null && $filterRead !== '') {
+            $inboxQuery->where('mailbox.is_read', $filterRead === 'true' || $filterRead === '1');
+        }
+        if ($filterScope) {
+            $inboxQuery->where('mailbox.scope', $filterScope);
+        }
+        
+        $inbox = $inboxQuery->orderBy('mailbox.created_at', 'desc')
+            ->paginate($perPage, ['*'], 'inbox_page');
+        
         // Get outbox with user names
-        $outbox = MailboxModel::where('from_user_id', $user->id)
+        $outboxQuery = MailboxModel::where('from_user_id', $user->id)
             ->leftJoin('users as recipient', 'recipient.id', '=', 'mailbox.to_user_id')
             ->select(
                 'mailbox.id',
@@ -56,22 +84,75 @@ class MailboxController extends Controller
                 'mailbox.scope',
                 'mailbox.created_at',
                 'recipient.name as to_user_name'
-            )
-            ->orderBy('mailbox.created_at', 'desc')
-            ->get()
-            ->map(function ($item) {
-                $item->from_display = 'Me';
-                $item->to_display = $item->scope === 'global'
-                    ? 'Global'
-                    : ($item->to_user_name ?? 'Unknown');
-                return $item;
+            );
+        
+        // Apply filters to outbox
+        if ($filterId) {
+            $outboxQuery->where('mailbox.id', $filterId);
+        }
+        if ($filterTo) {
+            $outboxQuery->where(function($q) use ($filterTo) {
+                $q->where('recipient.name', 'like', "%{$filterTo}%")
+                ->orWhere(function($qq) use ($filterTo) {
+                    $qq->where('mailbox.scope', 'global')
+                        ->where('recipient.name', 'like', "%{$filterTo}%");
+                });
             });
-            
+        }
+        if ($filterType) {
+            $outboxQuery->where('mailbox.type', $filterType);
+        }
+        if ($filterRead !== null && $filterRead !== '') {
+            $outboxQuery->where('mailbox.is_read', $filterRead === 'true' || $filterRead === '1');
+        }
+        if ($filterScope) {
+            $outboxQuery->where('mailbox.scope', $filterScope);
+        }
+        
+        $outbox = $outboxQuery->orderBy('mailbox.created_at', 'desc')
+            ->paginate($perPage, ['*'], 'outbox_page');
+        
+        // Map inbox items
+        $inbox->getCollection()->transform(function ($item) use ($user) {
+            $item->from_display = $item->from_user_id === $user->id
+                ? 'Me'
+                : ($item->from_user_name ?? 'Unknown');
+            $item->to_display = $item->to_user_id === $user->id
+                ? 'Me'
+                : ($item->scope === 'global' ? 'Global' : ($item->to_user_name ?? 'Unknown'));
+            return $item;
+        });
+        
+        // Map outbox items
+        $outbox->getCollection()->transform(function ($item) {
+            $item->from_display = 'Me';
+            $item->to_display = $item->scope === 'global'
+                ? 'Global'
+                : ($item->to_user_name ?? 'Unknown');
+            return $item;
+        });
+        
+        // Get unique values for filter dropdowns
+        $types = MailboxModel::distinct()->pluck('type')->filter()->values();
+        $scopes = MailboxModel::distinct()->pluck('scope')->filter()->values();
+        $users = User::orderBy('name')->pluck('name');
+        
         return Inertia::render('Mailbox', [
             'inbox' => $inbox,
             'outbox' => $outbox,
             'currentUserId' => $user->id,
-            'names' => User::pluck('name'),
+            'names' => $users,
+            'types' => $types,
+            'scopes' => $scopes,
+            'filters' => $request->only([
+                'filter_id', 
+                'filter_from', 
+                'filter_to', 
+                'filter_type', 
+                'filter_read', 
+                'filter_scope',
+                'per_page'
+            ]),
         ]);
     }
 
