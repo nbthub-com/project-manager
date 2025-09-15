@@ -420,36 +420,36 @@ function openView(user) {
             <!-- Stats Grid -->
             <div class="grid grid-cols-2 gap-4">
               <div
-                class="p-4 rounded-xl bg-purple-50 border border-purple-200 flex flex-col items-center"
+                class="p-4 rounded-xl border-none flex flex-col items-center"
               >
-                <span class="text-2xl font-bold text-purple-600">
+                <span class="text-4xl font-bold text-green-500">
                   {{ selectedUser.tasks_assigned }}
                 </span>
-                <span class="text-xs text-gray-600">Tasks Assigned</span>
+                <span class="text-xl text-gray-500">Tasks Assigned</span>
               </div>
               <div
-                class="p-4 rounded-xl bg-teal-50 border border-teal-200 flex flex-col items-center"
+                class="p-4 rounded-xl border-none flex flex-col items-center"
               >
-                <span class="text-2xl font-bold text-teal-600">
+                <span class="text-4xl font-bold text-orange-500">
                   {{ selectedUser.tasks_done }}
                 </span>
-                <span class="text-xs text-gray-600">Tasks Done</span>
+                <span class="text-xl text-gray-500">Tasks Done</span>
               </div>
               <div
-                class="p-4 rounded-xl bg-blue-50 border border-blue-200 flex flex-col items-center"
+                class="p-4 rounded-xl border-none flex flex-col items-center"
               >
-                <span class="text-2xl font-bold text-blue-600">
+                <span class="text-4xl font-bold text-yellow-500">
                   {{ selectedUser.projects_assigned }}
                 </span>
-                <span class="text-xs text-gray-600">Projects Assigned</span>
+                <span class="text-xl text-gray-500">Projects Assigned</span>
               </div>
               <div
-                class="p-4 rounded-xl bg-green-50 border border-green-200 flex flex-col items-center"
+                class="p-4 rounded-xl border-none flex flex-col items-center"
               >
-                <span class="text-2xl font-bold text-green-600">
+                <span class="text-4xl font-bold text-red-300">
                   {{ selectedUser.projects_done }}
                 </span>
-                <span class="text-xs text-gray-600">Projects Done</span>
+                <span class="text-xl text-gray-500">Projects Done</span>
               </div>
             </div>
             <!-- Roles -->
@@ -459,13 +459,13 @@ function openView(user) {
                 <span
                   v-for="(role, idx) in selectedUser.roles"
                   :key="idx"
-                  class="px-3 py-1 rounded-full text-xs font-semibold bg-gray-100 border border-gray-300 text-gray-700"
+                  class="px-3 py-1 rounded-full text-md font-semibold bg-blue-500 border border-gray-300 text-white"
                 >
                   {{ role }}
                 </span>
                 <span
                   v-if="!selectedUser.roles || selectedUser.roles.length === 0"
-                  class="text-sm text-gray-500 italic"
+                  class="text-md text-white italic"
                 >
                   No roles assigned
                 </span>
