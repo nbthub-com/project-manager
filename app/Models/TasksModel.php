@@ -16,7 +16,13 @@ class TasksModel extends Model
         'description',
         'by_id',
         'to_id',
-        'pr_id'
+        'pr_id',
+        'priority',
+        'deadline'
+    ];
+
+    protected $casts = [
+        'deadline' => 'date',
     ];
 
     // Manager (assigned by)

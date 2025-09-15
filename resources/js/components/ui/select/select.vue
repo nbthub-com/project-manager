@@ -10,6 +10,9 @@ const props = defineProps({
     type: Array,
     required: true, // [{ label: "User", value: "user" }]
   },
+  class: {
+    required: false
+  }
 });
 
 const emit = defineEmits(["update:modelValue"]);
@@ -81,6 +84,7 @@ onBeforeUnmount(() => {
       @click="toggle"
       class="w-full flex items-center justify-between rounded-md border border-input bg-card px-3 py-2 text-sm
              text-foreground shadow-sm transition focus:ring-2 focus:ring-primary/50 focus:outline-none"
+      :class="props.class"
     >
       <span>
         {{

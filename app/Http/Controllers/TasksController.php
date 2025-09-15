@@ -72,7 +72,11 @@ class TasksController extends Controller
                 $q->where('title', 'like', "%{$request->input('filter_project')}%");
             });
         }
-        
+
+        if ($request->filled('filter_priority')) {
+            $tasksQuery->where('priority', $request->input('filter_priority'));
+        }
+
         $tasks = $tasksQuery->paginate($perPage);
         
         // Admin sees all projects
@@ -91,6 +95,8 @@ class TasksController extends Controller
                 'title'       => $task->title,
                 'role_title'  => $task->role_title,
                 'status'      => $task->status,
+                'priority'    => $task->priority,
+                'deadline'    => $task->deadline?->format('Y-m-d'),
                 'description' => $task->description,
                 'manager'     => $task->manager?->name,
                 'assignee'    => $task->assignee?->name,
@@ -121,7 +127,8 @@ class TasksController extends Controller
                 'filter_status',
                 'filter_manager',
                 'filter_assignee',
-                'filter_project'
+                'filter_project',
+                'filter_priority'
             ]),
         ]);
     }
@@ -134,6 +141,8 @@ class TasksController extends Controller
             'role_title'  => 'required|string',
             'to_id'       => 'required|exists:users,id',
             'project_id'  => 'required|exists:projects,id',
+            'priority'    => 'required|in:high,medium,low',
+            'deadline'    => 'nullable|date',
         ]);
         // Slug bana letay hein
         $validated['role_title'] = Str::slug($validated['role_title']);
@@ -152,7 +161,9 @@ class TasksController extends Controller
             'to_id'       => $validated['to_id'],
             'by_id'       => $user->id,
             'pr_id'       => $validated['project_id'],
-            'role_title'  => $validated['role_title']
+            'role_title'  => $validated['role_title'],
+            'priority'    => $validated['priority'],
+            'deadline'    => $validated['deadline'],
         ]);
         return redirect('/tasks')->with('success', 'Task created successfully.');
     }
@@ -160,31 +171,48 @@ class TasksController extends Controller
     {
         $task = TasksModel::findOrFail($id);
         $user = auth()->user();
-        // Authorization: allow task creator, project manager, or admin
+
         $isManager = $user->managedProjects()
             ->where('id', $task->pr_id)
             ->exists();
-        if (!$isManager && $user->role !== 'admin') {
+
+        $isAssignee = $task->to_id === $user->id;
+
+        // if user is neither admin, manager, nor assignee → reject
+        if (!$isManager && !$isAssignee && $user->role !== 'admin') {
             return redirect('/tasks')->with('error', 'You cannot update this task!');
         }
+
+        if ($isAssignee && $user->role !== 'admin' && !$isManager) {
+            // Assignee → only update status
+            $validated = $request->validate([
+                'status' => 'required|string|in:pending,in_progress,completed',
+            ]);
+
+            $task->update([
+                'status' => $validated['status'],
+            ]);
+
+            return redirect('/tasks')->with('success', 'As assignee, only status was updated!');
+        }
+
         $validated = $request->validate([
-            'title'       => 'required|string|max:255',
-            'description' => 'required|string',
-            'role_title'  => 'required|string',
-            'to_id'       => 'required|exists:users,id',
-            'project_id'  => 'required|exists:projects,id',
-            'status'      => 'required|string|in:pending,in_progress,completed,cancelled',
+            'title'       => 'nullable|string|max:255',
+            'description' => 'nullable|string',
+            'role_title'  => 'nullable|string',
+            'to_id'       => 'nullable|exists:users,id',
+            'project_id'  => 'nullable|exists:projects,id',
+            'status'      => 'nullable|string|in:pending,in_progress,completed,cancelled',
+            'priority'    => 'nullable|in:high,medium,low',
+            'deadline'    => 'nullable|date',
         ]);
-        // Slug bana letay hein yahan bhi
-        $validated['role_title'] = Str::slug($validated['role_title']);
-        $task->update([
-            'title'       => $validated['title'] ?? $task->title,
-            'description' => $validated['description'] ?? $task->description,
-            'to_id'       => $validated['to_id'] ?? $task->to_id,
-            'pr_id'       => $validated['project_id'] ?? $task->pr_id,
-            'status'      => $validated['status'] ?? $task->status,
-            'role_title'  => $validated['role_title'] ?? $task->role_title
-        ]);
+
+        if (!empty($validated['role_title'])) {
+            $validated['role_title'] = Str::slug($validated['role_title']);
+        }
+
+        $task->update(array_filter($validated, fn($val) => $val !== null));
+
         return redirect('/tasks')->with('success', 'Task updated successfully!');
     }
     public function delete($id)

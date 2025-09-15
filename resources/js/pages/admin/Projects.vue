@@ -23,7 +23,6 @@ const props = defineProps({
 
 const page = usePage();
 
-// 🔑 Local reactive state
 const filterId = ref(props.filters?.filter_id || '');
 const filterManager = ref(props.filters?.filter_manager || '');
 const filterStatus = ref(props.filters?.filter_status || '');
@@ -38,12 +37,13 @@ const filterForm = useForm({
   filter_status: filterStatus.value,
   filter_starred: filterStarred.value,
   per_page: perPage.value,
+  page: props.filters?.page
 });
 
 // Watch for filter changes
 watch(filterId, (value) => {
   filterForm.filter_id = value;
-  filterForm.page = 1; // Reset to first page when filtering
+  filterForm.page = 1;
   applyFilters();
 });
 
@@ -209,7 +209,7 @@ function openViewDialog(project) {
 
 // Helper function to format status text
 function formatStatus(status) {
-  return status.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
+  return status.replace(/([A-Z])/g, ' $1').replace("_", ' ').replace(/^./, str => str.toUpperCase());
 }
 </script>
 
