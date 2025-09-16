@@ -88,11 +88,12 @@ onMounted(() => {
               <Button
                 @click="prevMonth"
                 class="active:bg-secondary bg-primary"
+                type="button"
               >
                 <ArrowLeft />
               </Button>
               <span class="font-medium text-white">{{ monthYearLabel }}</span>
-              <Button @click="nextMonth"><ArrowRight /></Button>
+              <Button @click="nextMonth" type="button"><ArrowRight /></Button>
             </div>
 
             <!-- Weekdays -->
