@@ -1,5 +1,5 @@
 <script setup>
-import { defineProps, defineEmits } from "vue";
+import { defineProps, defineEmits, ref, onMounted } from "vue";
 
 const props = defineProps({
   modelValue: {
@@ -13,72 +13,80 @@ const emit = defineEmits(["update:modelValue"]);
 function close() {
   emit("update:modelValue", false);
 }
+
+// Sidebar width state
+const sidebarWidth = ref(500); // default width in px
+let isResizing = false;
+
+function startResize(e) {
+  isResizing = true;
+  document.addEventListener("mousemove", resize);
+  document.addEventListener("mouseup", stopResize);
+}
+
+function resize(e) {
+  if (!isResizing) return;
+  // limit between 250px and 800px
+  sidebarWidth.value = Math.min(Math.max(250, window.innerWidth - e.clientX), 800);
+}
+
+function stopResize() {
+  isResizing = false;
+  document.removeEventListener("mousemove", resize);
+  document.removeEventListener("mouseup", stopResize);
+}
 </script>
 
 <template>
-  <transition name="fade">
+  <transition name="slide">
     <div
       v-if="modelValue"
-      class="fixed inset-0 z-50 flex items-center justify-center p-4"
+      class="fixed inset-0 z-50 flex justify-end"
       @keydown.esc="close"
     >
       <!-- Backdrop -->
       <div
-        class="absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity"
+        class="absolute inset-0 bg-transparent transition-opacity"
         @click="close"
         aria-hidden="true"
       ></div>
 
-      <!-- Dialog panel -->
+      <!-- Sidebar panel -->
       <div
         role="dialog"
         aria-modal="true"
-        class="relative z-10 w-full max-w-lg transform overflow-hidden rounded-2xl bg-card text-card-foreground shadow-2xl transition-all scale-95 opacity-0 animate-fade-in-up"
+        class="relative z-10 h-full bg-card text-card-foreground shadow-2xl flex flex-col"
+        :style="{ width: sidebarWidth + 'px' }"
       >
+        <!-- Resize handle -->
+        <div
+          class="absolute left-0 top-0 h-full w-1 cursor-ew-resize bg-transparent hover:bg-secondary/30"
+          @mousedown="startResize"
+        ></div>
+
         <!-- Header slot -->
         <header
           class="px-6 pt-6 pb-3 flex items-center justify-between border-b border-secondary/30"
         >
           <slot name="header">
             <h3 class="text-xl font-semibold text-foreground">
-              Dialog Title
+              Sidebar Title
             </h3>
           </slot>
-          <button
-            type="button"
-            @click="close"
-            class="inline-flex h-8 w-8 items-center justify-center rounded-full hover:bg-secondary/20 focus:outline-none focus:ring-2 focus:ring-primary"
-            aria-label="Close dialog"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              class="h-5 w-5 text-foreground"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M6 18L18 6M6 6l12 12"
-              />
-            </svg>
-          </button>
         </header>
 
         <!-- Body slot -->
-        <div class="px-6 py-5 space-y-3 border-t-2">
+        <div class="flex-1 overflow-y-auto px-6 py-5 space-y-3">
           <slot name="body">
             <p class="text-sm leading-relaxed text-foreground/80">
-              Default body content goes here.  
+              Default sidebar content goes here.
             </p>
           </slot>
         </div>
 
         <!-- Footer slot -->
         <footer
-          class="px-6 pb-6 pt-3 flex justify-end gap-3 border-t-2 border-secondary/30"
+          class="px-6 pb-6 pt-3 flex justify-end gap-3 border-t border-secondary/30"
         >
           <slot name="footer" />
         </footer>
@@ -88,28 +96,13 @@ function close() {
 </template>
 
 <style scoped>
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.2s ease;
+.slide-enter-active,
+.slide-leave-active {
+  transition: transform 0.3s ease, opacity 0.2s ease;
 }
-.fade-enter-from,
-.fade-leave-to {
+.slide-enter-from,
+.slide-leave-to {
+  transform: translateX(100%);
   opacity: 0;
-}
-
-/* Extra pop-in animation */
-@keyframes fade-in-up {
-  from {
-    opacity: 0;
-    transform: translateY(15px) scale(0.97);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-.animate-fade-in-up {
-  animation: fade-in-up 0.25s ease-out forwards;
 }
 </style>

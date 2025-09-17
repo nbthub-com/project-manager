@@ -362,6 +362,7 @@ function getPriorityColor(priority) {
       return "bg-gray-500";
   }
 }
+const v = ref()
 </script>
 
 <template>
@@ -910,7 +911,7 @@ function getPriorityColor(priority) {
       <!-- Header -->
       <template #header>
         <div class="flex items-center gap-2">
-          <h2 class="text-xl font-bold flex items-center gap-2 capitalize">
+          <h2 class="text-xl  font-bold flex items-center gap-2 capitalize">
             {{ viewTask.title }}
           </h2>
           <span
