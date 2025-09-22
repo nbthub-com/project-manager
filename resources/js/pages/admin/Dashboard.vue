@@ -3,134 +3,70 @@ import { Head } from "@inertiajs/vue3";
 import { defineProps } from "vue";
 import AppLayout from "@/layouts/AppLayout.vue";
 import {
-  FolderKanban,
-  ListChecks,
-  UserCheck,
-  Users,
+  CheckCircle,
+  Clock,
+  XCircle,
+  FlaskConical,
+  ListTodo,
   TrendingUp,
   Zap,
 } from "lucide-vue-next";
 
-const breadcrumbs = [{ title: "Dashboard", href: "/admin" }];
+const breadcrumbs = [{ title: "Admin", href: "/admin" }];
 
 interface Stats {
-  members: {
+  tasks: {
+    completed: number;
+    pending: number;
+    in_progress: number;
+    cancelled: number;
+    review: number;
+    testing: number;
     total: number;
-    managers: number;
   };
   projects: {
-    total: number;
-    running: number;
     completed: number;
-    cancelled: number;
-  };
-  tasks: {
-    total: number;
     pending: number;
-    running: number;
-    completed: number;
+    in_progress: number;
+    review: number;
     cancelled: number;
+    testing: number;
+    total: number;
   };
 }
 
-defineProps<{ stats: Stats }>();
+const props = defineProps<{
+  taskStats: Stats["tasks"];
+  projectStats: Stats["projects"];
+}>();
+
+const stats = {
+  tasks: props.taskStats,
+  projects: props.projectStats,
+};
+
+const icons = {
+  completed: CheckCircle,
+  pending: Clock,
+  cancelled: XCircle,
+  testing: FlaskConical,
+  total: ListTodo,
+};
+
+// Gradient colors per status (consistent styling)
+const gradients = {
+  completed: "from-green-500 to-emerald-600",
+  pending: "from-yellow-500 to-amber-600",
+  cancelled: "from-red-500 to-pink-600",
+  testing: "from-purple-500 to-indigo-600",
+  total: "from-blue-500 to-sky-600",
+};
 </script>
 
 <template>
   <Head title="Admin Dashboard" />
   <AppLayout :breadcrumbs="breadcrumbs">
     <div class="flex flex-col gap-4 p-4">
-      <!-- Stats Overview Cards -->
-      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <!-- Total Members -->
-        <div
-          class="group relative overflow-hidden rounded-2xl transition-all duration-500 hover:shadow-2xl hover:-translate-y-1"
-        >
-          <div
-            class="absolute inset-0 bg-gradient-to-br from-[#5a248a] to-[#8a4fc2] opacity-90"
-          ></div>
-          <div class="relative p-4 text-white">
-            <div class="flex justify-between items-start">
-              <div>
-                <p class="text-md opacity-80">Total Members</p>
-                <p class="text-2xl font-bold mt-1">{{ stats.members.total }}</p>
-              </div>
-              <div
-                class="p-2 rounded-full bg-white/20 group-hover:bg-white/30 transition-colors"
-              >
-                <Users class="w-5 h-5" />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Total Managers -->
-        <div
-          class="group relative overflow-hidden rounded-2xl transition-all duration-500 hover:shadow-2xl hover:-translate-y-1"
-        >
-          <div
-            class="absolute inset-0 bg-gradient-to-br from-[#3b82f6] to-[#60a5fa] opacity-90"
-          ></div>
-          <div class="relative p-4 text-white">
-            <div class="flex justify-between items-start">
-              <div>
-                <p class="text-md opacity-80">Total Managers</p>
-                <p class="text-2xl font-bold mt-1">{{ stats.members.managers }}</p>
-              </div>
-              <div
-                class="p-2 rounded-full bg-white/20 group-hover:bg-white/30 transition-colors"
-              >
-                <UserCheck class="w-5 h-5" />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Total Projects -->
-        <div
-          class="group relative overflow-hidden rounded-2xl transition-all duration-500 hover:shadow-2xl hover:-translate-y-1"
-        >
-          <div
-            class="absolute inset-0 bg-gradient-to-br from-[#10b981] to-[#34d399] opacity-90"
-          ></div>
-          <div class="relative p-4 text-white">
-            <div class="flex justify-between items-start">
-              <div>
-                <p class="text-md opacity-80">Total Projects</p>
-                <p class="text-2xl font-bold mt-1">{{ stats.projects.total }}</p>
-              </div>
-              <div
-                class="p-2 rounded-full bg-white/20 group-hover:bg-white/30 transition-colors"
-              >
-                <FolderKanban class="w-5 h-5" />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Total Tasks -->
-        <div
-          class="group relative overflow-hidden rounded-2xl transition-all duration-500 hover:shadow-2xl hover:-translate-y-1"
-        >
-          <div
-            class="absolute inset-0 bg-gradient-to-br from-[#f59e0b] to-[#fbbf24] opacity-90"
-          ></div>
-          <div class="relative p-4 text-white">
-            <div class="flex justify-between items-start">
-              <div>
-                <p class="text-md opacity-80">Total Tasks</p>
-                <p class="text-2xl font-bold mt-1">{{ stats.tasks.total }}</p>
-              </div>
-              <div
-                class="p-2 rounded-full bg-white/20 group-hover:bg-white/30 transition-colors"
-              >
-                <ListChecks class="w-5 h-5" />
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
       <!-- Projects & Tasks Progress -->
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
         <!-- Projects Progress -->
@@ -144,17 +80,16 @@ defineProps<{ stats: Stats }>();
             <div class="flex items-center justify-between mb-4">
               <h2 class="text-xl font-bold flex items-center gap-2">
                 <TrendingUp class="w-5 h-5" />
-                Projects Status
+                Projects Status ({{ stats.projects.total }})
               </h2>
-              <div class="flex items-center gap-1">
-                <Zap class="w-4 h-4 text-yellow-300 animate-pulse" />
-                <span class="text-md font-medium">Live</span>
-              </div>
             </div>
             <div class="space-y-3">
               <template
                 v-for="(count, key) in {
-                  running: stats.projects.running,
+                  pending: stats.projects.pending,
+                  running: stats.projects.in_progress,
+                  testing: stats.projects.testing,
+                  review: stats.projects.review,
                   completed: stats.projects.completed,
                   cancelled: stats.projects.cancelled,
                 }"
@@ -165,23 +100,26 @@ defineProps<{ stats: Stats }>();
                     <span class="text-md font-medium capitalize">{{ key }}</span>
                     <span class="text-md font-bold"
                       >{{ count }} ({{
-                        stats.projects.total > 0
+                        stats.projects.total > 0 && count
                           ? Math.round((count / stats.projects.total) * 100)
                           : 0
                       }}%)</span
                     >
                   </div>
-                  <div class="w-full bg-white/20 rounded-full h-2">
+                  <div class="w-full bg-white/20 rounded-full h-fit">
                     <div
                       class="h-2 rounded-full transition-all duration-1000 ease-out"
                       :class="{
+                        'bg-yellow-400': key === 'pending',
+                        'bg-purple-400': key === 'testing',
+                        'bg-indigo-400': key === 'review',
                         'bg-blue-400': key === 'running',
                         'bg-green-400': key === 'completed',
                         'bg-red-400': key === 'cancelled',
                       }"
                       :style="{
                         width: `${
-                          stats.projects.total > 0
+                          (stats.projects.total > 0 && count)
                             ? (count / stats.projects.total) * 100
                             : 0
                         }%`,
@@ -205,18 +143,16 @@ defineProps<{ stats: Stats }>();
             <div class="flex items-center justify-between mb-4">
               <h2 class="text-xl font-bold flex items-center gap-2">
                 <TrendingUp class="w-5 h-5" />
-                Tasks Status
+                Tasks Status ({{ stats.tasks.total }})
               </h2>
-              <div class="flex items-center gap-1">
-                <Zap class="w-4 h-4 text-yellow-300 animate-pulse" />
-                <span class="text-md font-medium">Live</span>
-              </div>
             </div>
             <div class="space-y-3">
               <template
                 v-for="(count, key) in {
                   pending: stats.tasks.pending,
-                  running: stats.tasks.running,
+                  running: stats.tasks.in_progress,
+                  testing: stats.tasks.testing,
+                  review: stats.tasks.review,
                   completed: stats.tasks.completed,
                   cancelled: stats.tasks.cancelled,
                 }"
@@ -227,24 +163,26 @@ defineProps<{ stats: Stats }>();
                     <span class="text-md font-medium capitalize">{{ key }}</span>
                     <span class="text-md font-bold"
                       >{{ count }} ({{
-                        stats.tasks.total > 0
+                        stats.tasks.total > 0 && count
                           ? Math.round((count / stats.tasks.total) * 100)
                           : 0
                       }}%)</span
                     >
                   </div>
-                  <div class="w-full bg-white/20 rounded-full h-2">
+                  <div class="w-full bg-white/20 rounded-full h-fit">
                     <div
                       class="h-2 rounded-full transition-all duration-1000 ease-out"
                       :class="{
                         'bg-yellow-400': key === 'pending',
+                        'bg-purple-400': key === 'testing',
+                        'bg-indigo-400': key === 'review',
                         'bg-blue-400': key === 'running',
                         'bg-green-400': key === 'completed',
                         'bg-red-400': key === 'cancelled',
                       }"
                       :style="{
                         width: `${
-                          stats.tasks.total > 0 ? (count / stats.tasks.total) * 100 : 0
+                          (stats.tasks.total > 0 && count) ? (count / stats.tasks.total) * 100 : 0
                         }%`,
                       }"
                     ></div>

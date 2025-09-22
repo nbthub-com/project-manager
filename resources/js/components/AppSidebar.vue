@@ -51,6 +51,12 @@ const mainNavItems = computed<NavItem[]>(() => {
       href: '/client/projects',
       icon: Package,
     });
+  } else {
+    items.push({
+      title: 'Projects',
+      href: '/projects',
+      icon: Package,
+    });
   }
   items.push({
       title: 'Mailbox',

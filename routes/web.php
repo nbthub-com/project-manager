@@ -11,6 +11,7 @@ Route::get('/', [UserDashboardController::class, 'index'])
     ->name('dashboard');
 
 Route::middleware(['auth', 'verified'])->group(function () {
+    // Mailbox For All
     Route::get('/mailbox', [MailboxController::class, 'index']);
     Route::post('/mailbox/send', [MailboxController::class, 'send']);
     Route::put('/mailbox/update/{id}', [MailboxController::class, 'update']);
@@ -21,11 +22,15 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Mailbox:: Outbox message delete route...
     Route::delete('/mailbox/delete/{id}', [MailboxController::class, 'destroy']);
 
-    // Tasks
+    // Tasks For both User and Admin
     Route::get('/tasks', [TasksController::class, 'index']);
     Route::post('/tasks/create', [TasksController::class, 'create']);
     Route::put('/tasks/update/{id}', [TasksController::class, 'update']);
     Route::delete('/tasks/delete/{id}', [TasksController::class, 'delete']);
+
+    // Project for User
+    Route::get('/projects', [UserDashboardController::class, 'projects_render']);
+    Route::put('/projects/edit/{projectId}', [UserDashboardController::class, 'editProject']);
 });
 
 

@@ -13,61 +13,23 @@ class AdminController extends Controller
 {
     public function index()
     {
-        // === Users ===
-        $totalMembers   = User::where('role', 'user'   )->count();
-        $totalManagers  = User::where('role', 'manager')->count();
-
-        // === Top 5 Members with most tasks ===
-        $topMembers = User::where('role', 'user')
-            ->withCount('assignedTasks') // correct relation
-            ->orderByDesc('assigned_tasks_count')
-            ->take(5)
-            ->get(['id', 'name', 'email']);
-
-        // === Top 5 Managers with most projects ===
-        $topManagers = User::where('role', 'manager')
-            ->withCount('managedProjects') // correct relation
-            ->orderByDesc('managed_projects_count')
-            ->take(5)
-            ->get(['id', 'name', 'email']);
-
         // === Projects ===
-        $totalProjects     = ProjectsModel::count();
-        $runningProjects   = ProjectsModel::where('status', 'in_progress')->count();
-        $completedProjects = ProjectsModel::where('status', 'completed')->count();
-        $cancelledProjects = ProjectsModel::where('status', 'cancelled')->count();
+        $projectStats = ProjectsModel::selectRaw('status, COUNT(*) as count')
+            ->groupBy('status')
+            ->pluck('count', 'status');
+
+        $projectStats['total'] = ProjectsModel::count();
 
         // === Tasks ===
-        $totalTasks     = TasksModel::count();
-        $pendingTasks   = TasksModel::where('status', 'pending')->count();
-        $runningTasks   = TasksModel::where('status', 'in_progress')->count();
-        $completedTasks = TasksModel::where('status', 'completed')->count();
-        $cancelledTasks = TasksModel::where('status', 'cancelled')->count();
+        $taskStats = TasksModel::selectRaw('status, COUNT(*) as count')
+            ->groupBy('status')
+            ->pluck('count', 'status');
+
+        $taskStats['total'] = TasksModel::count();
 
         return Inertia::render('admin/Dashboard', [
-            'stats' => [
-                'members' => [
-                    'total'    => $totalMembers,
-                    'managers' => $totalManagers,
-                ],
-                'top' => [
-                    'members'  => $topMembers,
-                    'managers' => $topManagers,
-                ],
-                'projects' => [
-                    'total'     => $totalProjects,
-                    'running'   => $runningProjects,
-                    'completed' => $completedProjects,
-                    'cancelled' => $cancelledProjects,
-                ],
-                'tasks' => [
-                    'total'     => $totalTasks,
-                    'pending'   => $pendingTasks,
-                    'running'   => $runningTasks,
-                    'completed' => $completedTasks,
-                    'cancelled' => $cancelledTasks,
-                ],
-            ],
+            'taskStats'    => $taskStats,
+            'projectStats' => $projectStats,
         ]);
     }
     // Helper method to get user data with stats

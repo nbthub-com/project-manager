@@ -80,12 +80,8 @@ const gradients = {
             <div class="flex items-center justify-between mb-4">
               <h2 class="text-xl font-bold flex items-center gap-2">
                 <TrendingUp class="w-5 h-5" />
-                Projects Status
+                Projects Status ({{ stats.projects.total }})
               </h2>
-              <div class="flex items-center gap-1">
-                <Zap class="w-4 h-4 text-yellow-300 animate-pulse" />
-                <span class="text-md font-medium">Live</span>
-              </div>
             </div>
             <div class="space-y-3">
               <template
@@ -104,7 +100,7 @@ const gradients = {
                     <span class="text-md font-medium capitalize">{{ key }}</span>
                     <span class="text-md font-bold"
                       >{{ count }} ({{
-                        stats.projects.total > 0
+                        stats.projects.total > 0 && count
                           ? Math.round((count / stats.projects.total) * 100)
                           : 0
                       }}%)</span
@@ -147,12 +143,8 @@ const gradients = {
             <div class="flex items-center justify-between mb-4">
               <h2 class="text-xl font-bold flex items-center gap-2">
                 <TrendingUp class="w-5 h-5" />
-                Tasks Status
+                Tasks Status ({{ stats.tasks.total }})
               </h2>
-              <div class="flex items-center gap-1">
-                <Zap class="w-4 h-4 text-yellow-300 animate-pulse" />
-                <span class="text-md font-medium">Live</span>
-              </div>
             </div>
             <div class="space-y-3">
               <template
@@ -171,7 +163,7 @@ const gradients = {
                     <span class="text-md font-medium capitalize">{{ key }}</span>
                     <span class="text-md font-bold"
                       >{{ count }} ({{
-                        stats.tasks.total > 0
+                        stats.tasks.total > 0 && count
                           ? Math.round((count / stats.tasks.total) * 100)
                           : 0
                       }}%)</span
