@@ -7,6 +7,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use App\Models\ProjectsModel;
 use App\Models\TasksModel;
+use App\Models\ClientModel;
 
 class User extends Authenticatable
 {
@@ -64,5 +65,22 @@ class User extends Authenticatable
     public function givenTasks()
     {
         return $this->hasMany(TasksModel::class, 'by_id');
+    }
+
+    public function clientTasks()
+    {
+        return $this->hasManyThrough(
+            TasksModel::class,
+            ProjectsModel::class,
+            'client_id',
+            'pr_id',
+            'id',
+            'id'
+        );
+    }
+
+    public function clientProjects()
+    {
+        return $this->hasMany(ProjectsModel::class, 'client_id');
     }
 }

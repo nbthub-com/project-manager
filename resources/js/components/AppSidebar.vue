@@ -19,22 +19,22 @@ import { computed } from 'vue';
 
 // Access user from Inertia props
 const page = usePage();
-
+const role = page.props.auth?.user?.role
 const mainNavItems = computed<NavItem[]>(() => {
   const items: NavItem[] = [
     {
       title: 'Dashboard',
-      href: page.props.auth?.user?.role === 'admin' ? '/admin' : '/',
+      href: role === 'admin' ? '/admin' : role === 'client' ? '/client' : '/',
       icon: LayoutGrid,
     },
     {
       title: 'Tasks',
-      href: '/tasks',
+      href: role === 'client' ? '/client/tasks' : '/tasks',
       icon: List,
     }
   ];
 
-  if (page.props.auth?.user?.role === 'admin') {
+  if (role === 'admin') {
     items.push({
       title: 'Projects',
       href: '/admin/projects',
@@ -44,6 +44,12 @@ const mainNavItems = computed<NavItem[]>(() => {
       title: 'Members',
       href: '/admin/members',
       icon: Person,
+    });
+  } else if (role === 'client'){
+    items.push({
+      title: 'Projects',
+      href: '/client/projects',
+      icon: Package,
     });
   }
   items.push({

@@ -1,19 +1,20 @@
 <?php
 namespace App\Http\Controllers\Admin;
+
 use Illuminate\Http\Request;
 use Inertia\Inertia;
-use App\Models\User;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Hash;
 use App\Models\TasksModel;
 use App\Models\ProjectsModel;
+use App\Models\User;
 
 class AdminController extends Controller
 {
     public function index()
     {
         // === Users ===
-        $totalMembers   = User::where('role', 'user')->count();
+        $totalMembers   = User::where('role', 'user'   )->count();
         $totalManagers  = User::where('role', 'manager')->count();
 
         // === Top 5 Members with most tasks ===
@@ -75,26 +76,30 @@ class AdminController extends Controller
         $perPage = $request->input('per_page', 10);
         $filterRole = $request->input('filter_role');
         $filterId = $request->input('filter_id');
-        
+        $filterName = $request->input('filter_name');
+
         // Start with base query
         $query = User::where('role', '!=', 'admin')
             ->orderBy('id', 'desc');
-        
+
         // Apply ID filter if provided
         if ($filterId) {
             $query->where('id', $filterId);
         }
-        
+        if ($filterName) {
+            $query->where('name', $filterName);
+        }
+
         // Get paginated users
         $users = $query->paginate($perPage);
-        
+
         // Get distinct roles for filter dropdown
         $roles = TasksModel::distinct()
             ->pluck('role_title')
             ->filter()
             ->values()
             ->toArray();
-        
+
         // Map users with additional data
         $mappedUsers = $users->getCollection()->map(function ($user) {
             // Projects managed
@@ -124,6 +129,9 @@ class AdminController extends Controller
                 'tasks_assigned' => $tasksAssigned,
                 'tasks_done' => $tasksDone,
                 'roles' => $userRoles,
+                'is_client' => $user->role === 'client',
+                'client_tasks' => $user->clientTasks()->count(),
+                'client_projects' => $user->clientProjects()->count()
             ];
         });
         
@@ -139,13 +147,13 @@ class AdminController extends Controller
     public function view_mems(Request $request)
     {
         $data = $this->getUserData($request);
-        
+
         return Inertia::render('admin/Members', [
             'users' => $data['users'],
             'roles' => $data['roles'],
-            'filters' => $request->only(['filter_role', 'filter_id', 'per_page']),
+            'filters' => $request->only(['filter_role', 'filter_id', 'filter_name','per_page']),
         ]);
-    }    
+    }
     public function add_mem(Request $request)
     {
         // Normalize values before validation
@@ -154,7 +162,7 @@ class AdminController extends Controller
             'email' => strtolower($request->email),
             'role' => strtolower($request->role),
         ]);
-        
+
         // Validate with case-insensitive uniqueness
         $validated = $request->validate([
             'name' => [
@@ -175,7 +183,7 @@ class AdminController extends Controller
                     }
                 },
             ],
-            'role' => 'required|in:user',
+            'role' => 'required|in:user,client',
             'password' => 'required|min:6',
         ]);
         
@@ -186,11 +194,11 @@ class AdminController extends Controller
             'role' => $validated['role'],
             'password' => Hash::make($validated['password']),
         ]);
-        
+
         // Return Inertia response with updated users and flash message
         return redirect()->route('members.view')->with('success', 'Member added successfully!');
     }
-    
+
     public function delete_mem($id)
     {
         $user = User::findOrFail($id);
@@ -206,7 +214,7 @@ class AdminController extends Controller
         if(!$query){
             return redirect()->route('members.view');
         }
-        
+
         $users = User::where('role', '!=', 'admin')
             ->where(function($q) use ($query) {
                 $q->whereRaw('LOWER(name) LIKE ?', ["%{$query}%"])
@@ -214,7 +222,7 @@ class AdminController extends Controller
             })
             ->orderBy('id', 'desc')
             ->get(['id', 'name', 'email', 'role']);
-            
+
         // Map users to include stats
         $users = $users->map(function ($user) {
             // Projects managed

@@ -108,7 +108,7 @@ class TasksController extends Controller
         
         $tasks->setCollection($mappedTasks);
         
-        $names = User::where('role', '!=', 'admin')
+        $names = User::where('role', 'user')
             ->select('id', 'name')
             ->get();
         
@@ -149,7 +149,7 @@ class TasksController extends Controller
         $isManager = $user->managedProjects()
             ->where('id', $validated['project_id'])
             ->exists();
-        if (! $isManager && $user->role !== 'admin') {
+        if (!$isManager && $user->role !== 'admin') {
             return back()->withErrors([
                 'project_id' => 'You are not authorized to assign tasks for this project.'
             ]);
@@ -186,7 +186,7 @@ class TasksController extends Controller
         if ($isAssignee && $user->role !== 'admin' && !$isManager) {
             // Assignee → only update status
             $validated = $request->validate([
-                'status' => 'required|string|in:pending,in_progress,completed',
+                'status' => 'required|string|in:pending,in_progress,completed,testing,review,cancelled',
             ]);
 
             $task->update([
@@ -202,7 +202,7 @@ class TasksController extends Controller
             'role_title'  => 'nullable|string',
             'to_id'       => 'nullable|exists:users,id',
             'project_id'  => 'nullable|exists:projects,id',
-            'status'      => 'nullable|string|in:pending,in_progress,completed,cancelled',
+            'status'      => 'nullable|string|in:pending,in_progress,completed,testing,review,cancelled',
             'priority'    => 'nullable|in:high,medium,low',
             'deadline'    => 'nullable|date',
         ]);

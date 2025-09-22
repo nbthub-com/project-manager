@@ -13,6 +13,11 @@ return new class extends Migration
     {
         Schema::create('comments', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('from')->constrained('users')->cascadeOnDelete();
+            $table->unsignedBigInteger('for_id')->nullable();
+            $table->enum('context', ['project', 'task'])->nullable();
+            $table->text('content');
+            $table->foreignId('reply_to')->nullable()->constrained('comments')->nullOnDelete();
             $table->timestamps();
         });
     }

@@ -27,6 +27,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::put('/tasks/update/{id}', [TasksController::class, 'update']);
     Route::delete('/tasks/delete/{id}', [TasksController::class, 'delete']);
 });
+
+
+
 require __DIR__.'/settings.php';
 require __DIR__.'/auth.php';
 require __DIR__.'/admin.php';
+require __DIR__.'/client.php';

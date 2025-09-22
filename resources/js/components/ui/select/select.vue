@@ -12,6 +12,14 @@ const props = defineProps({
   },
   class: {
     required: false
+  },
+  classparent: {
+    required: false,
+    default: "w-full"
+  },
+  classdrop: {
+    required: false,
+    default: ""
   }
 });
 
@@ -77,7 +85,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div ref="dropdownRef" class="relative w-full">
+  <div ref="dropdownRef" class="relative w-fit" :class="classparent">
     <!-- Trigger -->
     <button
       type="button"
@@ -89,7 +97,7 @@ onBeforeUnmount(() => {
       <span>
         {{
           props.options.find((o) => o.value === props.modelValue)?.label ||
-          "Select an option"
+          "Select"
         }}
       </span>
       <svg
@@ -119,6 +127,7 @@ onBeforeUnmount(() => {
           class="fixed z-[9999] rounded-xl border bg-secondary border-input text-sm 
                  shadow-lg shadow-blue-500/20 inset-2 overflow-auto m-1"
           :style="dropdownStyles"
+          :class="classdrop"
         >
           <li
             v-for="option in props.options"

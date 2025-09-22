@@ -6,10 +6,12 @@ use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
-class UserMiddleware
+class ClientMiddleware
 {
     /**
      * Handle an incoming request.
+     *
+     * @param  \Closure(\Illuminate\Http\Request): (\Symfony\Component\HttpFoundation\Response)  $next
      */
     public function handle(Request $request, Closure $next): Response
     {
@@ -18,21 +20,9 @@ class UserMiddleware
         }
 
         $role = auth()->user()->role;
-
-        $redirects = [
-            'admin'  => '/admin',
-            'client' => '/client',
-        ];
-
-        if (isset($redirects[$role])) {
-            $dashboard = $redirects[$role];
-
-            // Prevent infinite redirect if already on dashboard
-            if (!$request->is(ltrim($dashboard, '/').'*')) {
-                return redirect($dashboard);
-            }
+        if($role !== 'client'){
+            return redirect($role === 'user' ? '/': '/admin');
         }
-
         return $next($request);
     }
 }

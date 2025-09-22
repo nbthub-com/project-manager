@@ -2,14 +2,28 @@
 import AppLayout from "@/layouts/AppLayout.vue";
 import { Head, usePage, router, useForm } from "@inertiajs/vue3";
 import Button from "@/components/ui/button/Button.vue";
-import Dialog from "@/components/ui/simpleidalog/Dialog.vue";
+import Dialog from "@/components/ui/simpledialog/Dialog.vue";
 import Input from "@/components/ui/input/Input.vue";
 import Dropdown from "@/components/ui/select/Select.vue";
 import InputError from "@/components/InputError.vue";
 import Pagination from "@/components/ui/pagination/Pagination.vue";
 import { onMounted, ref, watch, computed } from "vue";
-import { Edit, Eye, Filter, Search, X, Calendar, AlertTriangle, Flame, Leaf } from "lucide-vue-next";
+import {
+  Edit,
+  Filter,
+  Search,
+  X,
+  Calendar,
+  AlertTriangle,
+  Flame,
+  Leaf,
+  Cross,
+  ChevronDown,
+} from "lucide-vue-next";
 import Picker from "@/components/ui/date/Picker.vue";
+import { marked } from "marked";
+import Viewer from "@/components/ui/md/viewer.vue";
+import { formatDate } from "@/lib/utils.ts";
 
 const breadcrumbs = [{ title: "Tasks", href: "/tasks" }];
 const props = defineProps({
@@ -242,10 +256,13 @@ const options = [
 ];
 
 // Status options for filter
+
 const statusOptions = [
   { label: "All Statuses", value: "" },
   { label: "Pending", value: "pending" },
   { label: "In Progress", value: "in_progress" },
+  { label: "Testing", value: "testing" },
+  { label: "Review", value: "review" },
   { label: "Completed", value: "completed" },
   { label: "Cancelled", value: "cancelled" },
 ];
@@ -302,6 +319,8 @@ function isAssignee(task) {
 const assigneeStatusOptions = [
   { label: "Pending", value: "pending" },
   { label: "In Progress", value: "in_progress" },
+  { label: "Testing", value: "testing" },
+  { label: "Review", value: "review" },
   { label: "Completed", value: "completed" },
 ];
 
@@ -324,31 +343,6 @@ function updateTaskStatus(task, newStatus) {
   );
 }
 
-// Format date for display
-function formatDate(dateString) {
-  if (!dateString) return "No deadline";
-
-  const date = new Date(dateString);
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  const taskDate = new Date(dateString);
-  taskDate.setHours(0, 0, 0, 0);
-
-  const diffTime = taskDate - today;
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-  if (diffDays < 0) {
-    return `Overdue by ${Math.abs(diffDays)} day${Math.abs(diffDays) !== 1 ? "s" : ""}`;
-  } else if (diffDays === 0) {
-    return "Due today";
-  } else if (diffDays === 1) {
-    return "Due tomorrow";
-  } else {
-    return `Due in ${diffDays} days`;
-  }
-}
-
 // Get priority color
 function getPriorityColor(priority) {
   switch (priority) {
@@ -362,7 +356,7 @@ function getPriorityColor(priority) {
       return "bg-gray-500";
   }
 }
-const v = ref()
+const showDescription = ref(false);
 </script>
 
 <template>
@@ -404,7 +398,7 @@ const v = ref()
         <div class="flex items-center space-x-2">
           <Dropdown
             v-model="perPage"
-            class="rounded text-sm"
+            class="rounded text-sm w-full"
             :options="[
               { value: 5, label: '5/pg' },
               { value: 10, label: '10/pg' },
@@ -532,8 +526,12 @@ const v = ref()
           <div
             v-for="task in props.tasks.data"
             :key="task.id"
-            class="p-4 rounded-xl shadow-lg text-white bg-gradient-to-br from-[#5a248a] to-secondary transition transform hover:scale-[1.02] hover:shadow-xl flex flex-col justify-between"
-            :class="task.status === 'cancelled' ? 'opacity-60 grayscale' : ''"
+            class="p-4 rounded-xl shadow-lg text-white transition transform hover:scale-[1.02] hover:shadow-xl flex flex-col justify-between"
+            :class="
+              task.status === 'cancelled'
+                ? 'bg-red-600'
+                : 'bg-gradient-to-br from-[#5a248a] to-secondary'
+            "
           >
             <!-- Task Info -->
             <div>
@@ -541,28 +539,13 @@ const v = ref()
                 class="flex justify-between items-center border-b border-white/20 pb-2 mb-3"
               >
                 <h3 class="text-lg font-bold flex flex-row">
-                  {{ task.title }}
+                  <span
+                    @click="openViewDialog(task)"
+                    class="cursor-pointer hover:underline"
+                    >{{ task.title }}</span
+                  >
                   <span class="font-extralight text-[15px] h-full gap-2 flex flex-row">
                     ({{ task.id }})
-                    <div
-                      class="flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold capitalize"
-                      :class="{
-                        'border-2 border-red-300 text-red-300': task.priority === 'high',
-                        'border-2 border-yellow-400 text-yellow-400': task.priority === 'medium',
-                        'border-2 border-green-400 text-green-400': task.priority === 'low',
-                      }"
-                    >
-                      <Flame
-                        v-if="task.priority === 'high'"
-                        class="w-4 h-4 text-red-300"
-                      />
-                      <AlertTriangle
-                        v-else-if="task.priority === 'medium'"
-                        class="w-4 h-4 text-yellow-400"
-                      />
-                      <Leaf v-else class="w-4 h-4 text-green-400" />
-                      <span>{{ task.priority || "medium" }}</span>
-                    </div>
                   </span>
                 </h3>
                 <button
@@ -605,39 +588,59 @@ const v = ref()
             <div
               class="mt-4 flex items-center justify-between border-t border-white/20 pt-2"
             >
-              <!-- Status display for non-assignees -->
-              <span
-                v-if="!isAssignee(task)"
-                class="px-2 py-1 rounded-full text-xs font-semibold capitalize"
-                :class="{
-                  'bg-yellow-400 text-black': task.status === 'pending',
-                  'bg-blue-500 text-white': task.status === 'in_progress',
-                  'bg-green-600 text-white': task.status === 'completed',
-                  'bg-red-500 text-white': task.status === 'cancelled',
-                }"
-              >
-                {{ task.status.replace("_", " ") }}
-              </span>
-              <!-- Status dropdown for assignees -->
-              <Dropdown
-                v-else
-                :options="assigneeStatusOptions"
-                :modelValue="task.status"
-                @update:modelValue="(newStatus) => updateTaskStatus(task, newStatus)"
-                class="w-32 px-2 py-1 text-xs font-medium rounded-md border border-white/20 bg-white/10 text-white focus:outline-none focus:ring-1 focus:ring-white hover:bg-white/20 transition"
-              />
-              <!-- Action buttons -->
-              <div class="flex gap-0.5 text-sm">
-                <button
-                  class="p-1 rounded-md hover:bg-white/20 transition"
-                  @click="openViewDialog(task)"
-                  title="View Task"
+              <div class="flex flex-row gap-2 items-center mr-2">
+                <div
+                  class="flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold capitalize"
+                  :class="{
+                    'border-2 border-red-300 text-red-300': task.priority === 'high',
+                    'border-2 border-yellow-400 text-yellow-400':
+                      task.priority === 'medium',
+                    'border-2 border-green-400 text-green-400': task.priority === 'low',
+                  }"
                 >
-                  <Eye class="w-4 h-4 text-white" />
-                </button>
+                  <Flame v-if="task.priority === 'high'" class="w-4 h-4 text-red-300" />
+                  <AlertTriangle
+                    v-else-if="task.priority === 'medium'"
+                    class="w-4 h-4 text-yellow-400"
+                  />
+                  <Leaf v-else class="w-4 h-4 text-green-400" />
+                  <span>{{ task.priority || "medium" }}</span>
+                </div>
+                <!-- Status display for non-assignees -->
+                <span
+                  v-if="!isAssignee(task)"
+                  class="px-2 py-1 rounded-full text-xs font-semibold capitalize"
+                  :class="{
+                    'bg-yellow-100 text-yellow-800': task.status === 'pending',
+                    'bg-blue-100 text-blue-800': task.status === 'in_progress',
+                    'bg-purple-100 text-purple-800': task.status === 'testing',
+                    'bg-indigo-100 text-indigo-800': task.status === 'review',
+                    'bg-green-100 text-green-800': task.status === 'completed',
+                    'bg-red-100 text-red-800': task.status === 'cancelled',
+                  }"
+                >
+                  {{ task.status.replace("_", " ") }}
+                </span>
+              </div>
+              <!-- Status dropdown for assignees -->
+              <template v-if="isAssignee(task)">
+                <label v-if="task.status === 'cancelled'" class="text-red-400 ml-2">
+                  Task Cancelled!
+                </label>
+                <Dropdown
+                  v-else
+                  :options="assigneeStatusOptions"
+                  :modelValue="task.status"
+                  @update:modelValue="(newStatus) => updateTaskStatus(task, newStatus)"
+                  class="px-6 py-1 text-xs font-medium rounded-md border border-white/20 bg-white/10 text-white focus:outline-none focus:ring-1 focus:ring-white hover:bg-white/20 transition"
+                  classparent="w-fit"
+                  classdrop="w-32"
+                />
+              </template>
+              <!-- Action buttons -->
+              <div class="flex gap-0.5 text-sm" v-if="!isAssignee(task)">
                 <!-- Edit button only for non-assignees -->
                 <button
-                  v-if="!isAssignee(task)"
                   class="p-1 rounded-md hover:bg-white/20 transition"
                   @click="
                     {
@@ -704,11 +707,14 @@ const v = ref()
         </p>
       </template>
       <template #body>
-        <div class="space-y-4">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
           <!-- Status Filter -->
           <div>
             <label class="block text-sm font-medium mb-1">Status</label>
-            <Dropdown v-model="filterStatus" :options="statusOptions" class="w-full" />
+            <Dropdown
+              v-model="filterStatus"
+              :options="statusOptions"
+            />
           </div>
 
           <!-- Priority Filter -->
@@ -717,14 +723,16 @@ const v = ref()
             <Dropdown
               v-model="filterPriority"
               :options="priorityOptions"
-              class="w-full"
             />
           </div>
 
           <!-- Manager Filter -->
           <div>
             <label class="block text-sm font-medium mb-1">Manager</label>
-            <Dropdown v-model="filterManager" :options="managerOptions" class="w-full" />
+            <Dropdown
+              v-model="filterManager"
+              :options="managerOptions"
+            />
           </div>
 
           <!-- Assignee Filter -->
@@ -733,33 +741,24 @@ const v = ref()
             <Dropdown
               v-model="filterAssignee"
               :options="assigneeOptions"
-              class="w-full"
             />
           </div>
 
           <!-- Project Filter -->
-          <div>
+          <div class="sm:col-span-2">
+            <!-- make this span full width -->
             <label class="block text-sm font-medium mb-1">Project</label>
-            <Dropdown v-model="filterProject" :options="projectOptions" class="w-full" />
+            <Dropdown
+              v-model="filterProject"
+              :options="projectOptions"
+            />
           </div>
         </div>
       </template>
       <template #footer>
         <div class="flex justify-between gap-3">
           <Button variant="outline" @click="resetFilters"> Reset All </Button>
-          <div class="flex gap-2">
-            <Button variant="outline" @click="isFilterOpen = false"> Cancel </Button>
-            <Button
-              @click="
-                () => {
-                  applyFilters();
-                  isFilterOpen = false;
-                }
-              "
-            >
-              Apply Filters
-            </Button>
-          </div>
+          <Button variant="outline" @click="isFilterOpen = false"> Cancel </Button>
         </div>
       </template>
     </Dialog>
@@ -828,13 +827,18 @@ const v = ref()
             <div class="w-1/2">
               <label class="block text-sm font-medium mb-1">Role</label>
               <Dropdown v-model="form.role_title" :options="options" />
+            </div>
+            <div
+              class="w-1/2"
+              v-if="
+                form.role_title === null ||
+                !options
+                  .filter((opt) => opt.value)
+                  .some((opt) => opt.value === form.role_title)
+              "
+            >
+              <label class="block text-sm font-medium mb-1">New Role</label>
               <Input
-                v-if="
-                  form.role_title === null ||
-                  !options
-                    .filter((opt) => opt.value)
-                    .some((opt) => opt.value === form.role_title)
-                "
                 v-model="form.role_title"
                 class="mt-1"
                 placeholder="Enter new role_title"
@@ -843,15 +847,7 @@ const v = ref()
             </div>
             <div class="w-1/2" v-if="isEditMode">
               <label class="block text-sm font-medium mb-1">Status</label>
-              <Dropdown
-                v-model="form.status"
-                :options="[
-                  { label: 'Pending', value: 'pending' },
-                  { label: 'In Progress', value: 'in_progress' },
-                  { label: 'Completed', value: 'completed' },
-                  { label: 'Cancelled', value: 'cancelled' },
-                ]"
-              />
+              <Dropdown v-model="form.status" :options="statusOptions" />
             </div>
           </div>
 
@@ -911,16 +907,18 @@ const v = ref()
       <!-- Header -->
       <template #header>
         <div class="flex items-center gap-2">
-          <h2 class="text-xl  font-bold flex items-center gap-2 capitalize">
+          <h2 class="text-xl font-bold flex items-center gap-2 capitalize">
             {{ viewTask.title }}
           </h2>
           <span
             class="px-2 py-1 rounded-full text-xs font-semibold capitalize"
             :class="{
-              'bg-yellow-100 text-yellow-700': viewTask.status === 'pending',
-              'bg-blue-100 text-blue-700': viewTask.status === 'in_progress',
-              'bg-green-100 text-green-700': viewTask.status === 'completed',
-              'bg-red-100 text-red-700': viewTask.status === 'cancelled',
+              'bg-yellow-100 text-yellow-800': viewTask.status === 'pending',
+              'bg-blue-100 text-blue-800': viewTask.status === 'in_progress',
+              'bg-purple-100 text-purple-800': viewTask.status === 'testing',
+              'bg-indigo-100 text-indigo-800': viewTask.status === 'review',
+              'bg-green-100 text-green-800': viewTask.status === 'completed',
+              'bg-red-100 text-red-800': viewTask.status === 'cancelled',
             }"
           >
             {{ viewTask.status.replace("_", " ") }}
@@ -961,14 +959,31 @@ const v = ref()
             </div>
           </div>
           <!-- Description -->
-          <div class="space-y-1">
+        <div class="space-y-1">
+          <div
+            class="w-full flex items-center justify-between text-left cursor-pointer select-none"
+            @click="showDescription = !showDescription"
+          >
             <p class="text-xs uppercase tracking-wide text-gray-500">Description</p>
-            <div
-              class="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 text-sm shadow-inner hover:bg-gray-100 dark:hover:bg-gray-700 transition cursor-text"
-            >
-              {{ viewTask.description || "—" }}
-            </div>
+            <ChevronDown
+              class="w-4 h-4 transition-transform duration-300"
+              :class="{ 'rotate-270': !showDescription }"
+            />
           </div>
+
+          <transition
+            enter-active-class="transition duration-300 ease-out"
+            enter-from-class="opacity-0 max-h-0"
+            enter-to-class="opacity-100 max-h-[500px]"
+            leave-active-class="transition duration-300 ease-in"
+            leave-from-class="opacity-100 max-h-[500px]"
+            leave-to-class="opacity-0 max-h-0"
+          >
+            <div v-show="showDescription" class="overflow-hidden">
+              <Viewer :source="viewTask.description" />
+            </div>
+          </transition>
+        </div>
         </div>
       </template>
     </Dialog>

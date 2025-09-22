@@ -5,13 +5,14 @@ import { router, useForm, usePage } from "@inertiajs/vue3";
 import { Head } from "@inertiajs/vue3";
 import { Circle, CircleX, Delete, Edit, Eye, FileCheck, FileWarning, Info, LucideInbox, Plus, RefreshCwIcon, Search, Filter, X } from "lucide-vue-next";
 import { defineProps, ref, watch, computed } from "vue";
-import Dialog from "@/components/ui/simpleidalog/Dialog.vue";
+import Dialog from "@/components/ui/simpledialog/Dialog.vue";
 import { cn } from "@/lib/utils";
 import Select from "@/components/ui/select/Select.vue";
 import InputError from "@/components/InputError.vue";
 import Input from "@/components/ui/input/Input.vue";
 import axios from 'axios';
 import Pagination from "@/components/ui/pagination/Pagination.vue";
+import Viewer from "@/components/ui/md/viewer.vue";
 
 const props = defineProps(['inbox', 'outbox', 'currentUserId', 'names', 'types', 'scopes', 'filters']);
 const inbox = ref([...props.inbox.data]);
@@ -775,12 +776,7 @@ function updateMessage() {
             >
           </div>
           <hr class="my-2" />
-          <p class="text-gray-700 dark:text-gray-200">{{ selectedMessage.content }}</p>
-        </div>
-      </template>
-      <template #footer>
-        <div class="flex justify-end gap-2">
-          <Button @click="readDialog = false">Close</Button>
+          <p class="text-gray-700 dark:text-gray-200"><Viewer :source=" selectedMessage.content"/> </p>
         </div>
       </template>
     </Dialog>

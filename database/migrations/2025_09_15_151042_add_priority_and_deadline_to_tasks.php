@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::table('tasks', function (Blueprint $table) {
             $table->enum("priority", ["high", "medium", "low"])->default("medium");
             $table->date('deadline')->nullable();
-        });
+        }); 
     }
 
     /**

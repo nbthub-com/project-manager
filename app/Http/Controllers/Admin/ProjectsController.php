@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\Models\ProjectsModel;
 use Inertia\Inertia;
 use App\Models\User;
+use Illuminate\Validation\Rule;
 
 class ProjectsController extends Controller
 {
@@ -16,24 +17,24 @@ class ProjectsController extends Controller
         $filterManager = $request->input('filter_manager');
         $filterStatus = $request->input('filter_status');
         $filterStarred = $request->input('filter_starred');
+        $filterClient = $request->input('filter_client');
         
-        // Start with base query
-        $query = ProjectsModel::select(
-            'projects.id',
-            'projects.title',
-            'users.name as manager_name',
-            'projects.description',
-            'projects.is_starred',
-            'projects.status'
-        )
-        ->leftJoin('users', 'projects.manager_id', '=', 'users.id')
-        ->orderBy('projects.id', 'desc');
+        // Start with base query using relationships
+        $query = ProjectsModel::with(['manager', 'client'])
+            ->orderBy('projects.id', 'desc');
         
         if ($filterId) {
             $query->where('projects.id', $filterId);
         }
         if ($filterManager) {
-            $query->where('users.name', 'like', "%{$filterManager}%");
+            $query->whereHas('manager', function($q) use ($filterManager) {
+                $q->where('name', 'like', "%{$filterManager}%");
+            });
+        }
+        if ($filterClient) {
+            $query->whereHas('client', function($q) use ($filterClient) {
+                $q->where('name', 'like', "%{$filterClient}%");
+            });
         }
         if ($filterStatus) {
             $query->where('projects.status', $filterStatus);
@@ -44,7 +45,13 @@ class ProjectsController extends Controller
         
         $projects = $query->paginate($perPage);
         
-        $managers = User::orderBy('name')
+        $managers = User::where('role', '!=', 'client')
+            ->distinct()
+            ->orderBy('name')
+            ->pluck('name');
+            
+        $clients = User::where('role', 'client')
+            ->orderBy('name')
             ->pluck('name')
             ->unique()
             ->values();
@@ -52,9 +59,11 @@ class ProjectsController extends Controller
         return Inertia::render('admin/Projects', [
             'projects' => $projects,
             'managers' => $managers,
+            'clients' => $clients,
             'filters' => $request->only([
-                'filter_id', 
+                'filter_id',
                 'filter_manager', 
+                'filter_client',
                 'filter_status', 
                 'filter_starred',
                 'per_page'
@@ -67,6 +76,11 @@ class ProjectsController extends Controller
         $validated = $request->validate([
             'title' => 'required|min:3|string',
             'manager' => 'required|string|exists:users,name',
+            'client' => [
+                'required',
+                'string',
+                Rule::exists('users', 'name')->where('role', 'client')
+            ],
             'description' => 'nullable|string',
             'is_starred' => 'nullable|boolean',
         ]);
@@ -77,11 +91,25 @@ class ProjectsController extends Controller
             return back()->withErrors(['title' => 'Project title already exists.'])->withInput();
         }
 
-        $manager_id = User::where('name', $validated['manager'])->value('id');
-        
+        $manager = User::where('name', $validated['manager'])->first();
+        if (!$manager) {
+            return redirect()->route('admin.projects')
+                ->with('error', 'Selected manager not found!');
+        }
+        if($manager->role === 'client')
+        {
+            return redirect()->route('admin.projects')
+                ->with('error', 'Client cannot be manager!');
+        }
+        $client = User::where('name', $validated['client'])->where('role', 'client')->first();
+        if (!$client) {
+            return redirect()->route('admin.projects')
+                ->with('error', 'Selected client not found!');
+        }
         ProjectsModel::create([
             'title' => $validated['title'],
-            'manager_id' => $manager_id,
+            'manager_id' => $manager->id,
+            'client_id' => $client->id,
             'description' => $validated['description'] ?? '',
             'is_starred' => $validated['is_starred'] ?? false,
             'status' => 'in_progress'
@@ -95,10 +123,15 @@ class ProjectsController extends Controller
     {
         $validated = $request->validate([
             'title' => 'required|min:3|string',
-            'manager' => 'required|string|exists:users,name', // Added exists validation
+            'manager' => 'required|string|exists:users,name',
+            'client' => [
+                'required',
+                'string',
+                Rule::exists('users', 'name')->where('role', 'client')
+            ],
             'description' => 'nullable|string',
             'is_starred' => 'nullable|boolean',
-            'status' => 'required|in:in_progress,completed,cancelled'
+            'status' => 'required|in:pending,in_progress,completed,testing,review,cancelled'
         ]);
 
         $project = ProjectsModel::findOrFail($id);
@@ -111,11 +144,25 @@ class ProjectsController extends Controller
             return back()->withErrors(['title' => 'Project title already exists.'])->withInput();
         }
 
-        $manager_id = User::where('name', $validated['manager'])->value('id');
-        
+        $manager = User::where('name', $validated['manager'])->first();
+        if (!$manager) {
+            return redirect()->route('admin.projects')
+                ->with('error', 'Selected manager not found!');
+        }
+        if($manager->role === 'client')
+        {
+            return redirect()->route('admin.projects')
+                ->with('error', 'Client cannot be manager!');
+        }
+        $client = User::where('name', $validated['client'])->where('role', 'client')->first();
+        if (!$client) {
+            return redirect()->route('admin.projects')
+                ->with('error', 'Selected client not found!');
+        }
         $project->update([
             'title' => $validated['title'],
-            'manager_id' => $manager_id,
+            'manager_id' => $manager->id,
+            'client_id' => $client->id,
             'description' => $validated['description'] ?? '',
             'is_starred' => $validated['is_starred'] ?? false,
             'status' => $validated['status']
