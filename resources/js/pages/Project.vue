@@ -458,7 +458,12 @@ function formatStatus(status) {
           </div>
 
           <div>
-            <label class="block text-sm font-medium mb-1">Description</label>
+            <label class="text-sm font-medium mb-1 flex flex-row gap-2 items-baseline"
+              >Description
+              <p class="text-xs font-extralight">
+                (markdown & tailwind supported!)
+              </p>
+            </label>
             <textarea v-model="form.description" class="border rounded p-2 text-sm w-full" rows="3"></textarea>
             <InputError :message="form.errors.description" />
           </div>

@@ -35,7 +35,7 @@ class ClientController extends Controller
         $user = auth()->user();
 
         $tasks = $user->clientTasks()
-            ->with(['project', 'manager']) // eager load relations
+            ->with(['project', 'manager'])
             ->paginate(10)
             ->through(function ($task) {
                 return [

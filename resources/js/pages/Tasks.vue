@@ -789,7 +789,12 @@ const showDescription = ref(false);
           </div>
           <!-- Description -->
           <div>
-            <label class="block text-sm font-medium mb-1">Description</label>
+            <label class="text-sm font-medium mb-1 flex flex-row gap-2 items-baseline"
+              >Description
+              <p class="text-xs font-extralight">
+                (markdown & tailwind supported!)
+              </p>
+            </label>
             <textarea
               v-model="form.description"
               placeholder="Describe the task..."

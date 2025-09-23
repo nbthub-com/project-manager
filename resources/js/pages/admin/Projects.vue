@@ -529,7 +529,6 @@ const showDescription = ref(false);
         </template>
       </Dialog>
 
-      <!-- Add/Edit Project Dialog -->
       <Dialog v-model="isDialogOpen">
         <template #header>
           <div class="flex justify-between items-center w-full">
@@ -570,7 +569,12 @@ const showDescription = ref(false);
             </div>
             <!-- Description -->
             <div>
-              <label class="block text-sm font-medium mb-1">Description</label>
+              <label class="text-sm font-medium mb-1 flex flex-row gap-2 items-baseline"
+                >Description
+                <p class="text-xs font-extralight">
+                  (markdown & tailwind supported!)
+                </p>
+              </label>
               <textarea
                 v-model="form.description"
                 placeholder="Description"
@@ -686,6 +690,5 @@ const showDescription = ref(false);
         </template>
       </Dialog>
     </div>
-    <!-- Filter Dialog -->
   </AppLayout>
 </template>
