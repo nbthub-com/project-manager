@@ -17,11 +17,9 @@ import {
   AlertTriangle,
   Flame,
   Leaf,
-  Cross,
   ChevronDown,
 } from "lucide-vue-next";
 import Picker from "@/components/ui/date/Picker.vue";
-import { marked } from "marked";
 import Viewer from "@/components/ui/md/viewer.vue";
 import { formatDate } from "@/lib/utils.ts";
 
@@ -356,7 +354,7 @@ function getPriorityColor(priority) {
       return "bg-gray-500";
   }
 }
-const showDescription = ref(false);
+const showDescription = ref(true);
 </script>
 
 <template>

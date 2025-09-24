@@ -15,7 +15,7 @@ function openProject(project) {
   viewProject.value = project;
   isViewDialogOpen.value = true;
 }
-const showDescription = ref(false);
+const showDescription = ref(true);
 </script>
 
 <template>

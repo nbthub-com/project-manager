@@ -225,7 +225,7 @@ function openViewDialog(project) {
 function formatStatus(status) {
   return status.replace(/([A-Z])/g, ' $1').replace("_", ' ').replace(/^./, str => str.toUpperCase());
 }
-const showDescription = ref(false);
+const showDescription = ref(true);
 </script>
 
 <template>

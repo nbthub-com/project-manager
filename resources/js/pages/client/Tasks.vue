@@ -16,7 +16,7 @@ function openTask(task) {
   viewTask.value = task;
   isViewDialogOpen.value = true;
 }
-const showDescription = ref(false);
+const showDescription = ref(true);
 </script>
 
 <template>

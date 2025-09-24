@@ -17,7 +17,7 @@ const isDialogOpen = ref(false);
 const isViewDialogOpen = ref(false);
 const editId = ref(null);
 const viewProject = ref(null);
-const showDescription = ref(false);
+const showDescription = ref(true);
 
 const props = defineProps({
   projects: Object,
