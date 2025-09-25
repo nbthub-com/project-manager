@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { useForm, Head, Link, usePage } from '@inertiajs/vue3'
-import { edit } from '@/routes/profile'
 import { send } from '@/routes/verification'
 
 import DeleteUser from '@/components/DeleteUser.vue'
@@ -30,11 +29,11 @@ const form = useForm({
 })
 
 const breadcrumbItems: BreadcrumbItem[] = [
-  { title: 'Profile settings', href: edit().url },
+  { title: 'Profile settings', href: '/settings/profile' },
 ]
 
 const submit = () => {
-  form.patch(edit().url, {
+  form.patch('/settings/profile', {
     preserveScroll: true,
   })
 }

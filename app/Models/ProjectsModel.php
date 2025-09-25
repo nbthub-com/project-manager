@@ -4,6 +4,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use App\Models\TasksModel;
 use App\Models\User;
+use App\Models\NotesModel;
 
 class ProjectsModel extends Model
 {
@@ -40,6 +41,12 @@ class ProjectsModel extends Model
         return $this->belongsTo(User::class, 'client_id');
     }
 
+    public function notes()
+    {
+        return $this->hasMany(NotesModel::class, 'context_id')
+                    ->where('context', 'proj')
+                    ->with('member');
+    }
     // Add this to prevent mass assignment issues
     protected $guarded = ['id'];
 }

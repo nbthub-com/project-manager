@@ -20,7 +20,7 @@ class ProjectsController extends Controller
         $filterClient = $request->input('filter_client');
         
         // Start with base query using relationships
-        $query = ProjectsModel::with(['manager', 'client'])
+        $query = ProjectsModel::with(['manager', 'client', 'notes.member'])
             ->orderBy('projects.id', 'desc');
         
         if ($filterId) {
@@ -55,7 +55,7 @@ class ProjectsController extends Controller
             ->pluck('name')
             ->unique()
             ->values();
-        
+            
         return Inertia::render('admin/Projects', [
             'projects' => $projects,
             'managers' => $managers,

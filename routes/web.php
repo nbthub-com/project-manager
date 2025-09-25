@@ -5,6 +5,7 @@ use Inertia\Inertia;
 use App\Http\Controllers\MailboxController;
 use App\Http\Controllers\TasksController;
 use App\Http\Controllers\UserDashboardController;
+use App\Http\Controllers\NotesController;
 
 Route::get('/', [UserDashboardController::class, 'index'])
     ->middleware(['auth', 'verified', 'user'])
@@ -31,6 +32,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Project for User
     Route::get('/projects', [UserDashboardController::class, 'projects_render']);
     Route::put('/projects/edit/{projectId}', [UserDashboardController::class, 'editProject']);
+
+    // Notes
+    Route::post('/notes', [NotesController::class, 'create']);
 });
 
 

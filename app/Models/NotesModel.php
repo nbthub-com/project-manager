@@ -7,7 +7,7 @@ use App\Models\ProjectsModel;
 use App\Models\TasksModel;
 use App\Models\User;
 
-class Note extends Model
+class NotesModel extends Model
 {
     protected $table = 'notes';
 

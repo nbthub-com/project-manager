@@ -1,15 +1,16 @@
 <script setup lang="js">
 import { Head, useForm, usePage, router } from '@inertiajs/vue3';
-import { defineProps, ref, watch, computed } from 'vue';
+import { defineProps, ref, watch, computed, onMounted } from 'vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import Input from '@/components/ui/input/Input.vue';
 import Button from '@/components/ui/button/Button.vue';
-import { Edit, Search, Filter, X, Plus, WindArrowDown, ChevronDown } from 'lucide-vue-next';
+import { Edit, Search, Filter, X, Plus, WindArrowDown, ChevronDown, Hand } from 'lucide-vue-next';
 import Dialog from '@/components/ui/simpledialog/Dialog.vue';
 import InputError from '@/components/InputError.vue';
 import Select from '@/components/ui/select/Select.vue';
 import Pagination from '@/components/ui/pagination/Pagination.vue';
 import Viewer from '@/components/ui/md/viewer.vue';
+import axios from 'axios';
 
 const breadcrumbs = [
   { title: 'Projects', href: '/admin/projects' },
@@ -20,6 +21,7 @@ const props = defineProps({
   clients: Array,
   managers: Array,
   filters: Object,
+  notes: Object | Array
 });
 
 const page = usePage();
@@ -226,6 +228,44 @@ function formatStatus(status) {
   return status.replace(/([A-Z])/g, ' $1').replace("_", ' ').replace(/^./, str => str.toUpperCase());
 }
 const showDescription = ref(true);
+const note = ref('')
+/*
+            'content'    => 'required|string',
+            'context'    => 'required|in:proj,task',
+            'context_id' => 'required|integer',
+            'member_id'  => 'required|exists:users,id',
+            'type'       => 'nullable|in:note,question',
+*/
+onMounted(() => {
+  // Set CSRF token for axios requests
+  const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+  if (token) {
+    axios.defaults.headers.common['X-CSRF-TOKEN'] = token;
+  }
+});
+async function addNote() {
+  const content = note.value.trim();
+  if (!content) return; // prevent empty notes
+
+  try {
+    const response = await axios.post("/notes", {
+      content,
+      context: "proj",
+      context_id: viewProject.value.id,
+      member_id: page.props.auth.user.id,
+      type: content.includes("?") ? "question" : "note",
+    });
+
+    // Add new note to the current project's notes
+    viewProject.value.notes.push(response.data.note);
+        
+    note.value = ""; // reset textarea after submit
+  } catch (error) {
+    console.error("Error adding note:", error);
+    alert("Failed to add note. Please try again.");
+  }
+}
+
 </script>
 
 <template>
@@ -571,9 +611,7 @@ const showDescription = ref(true);
             <div>
               <label class="text-sm font-medium mb-1 flex flex-row gap-2 items-baseline"
                 >Description
-                <p class="text-xs font-extralight">
-                  (markdown & tailwind supported!)
-                </p>
+                <p class="text-xs font-extralight">(markdown & tailwind supported!)</p>
               </label>
               <textarea
                 v-model="form.description"
@@ -613,8 +651,15 @@ const showDescription = ref(true);
       <!-- View Project Dialog -->
       <Dialog v-model="isViewDialogOpen" v-if="viewProject">
         <template #header>
-          <div class="flex justify-between items-center w-full">
+          <div class="flex justify-between items-center flex-col w-full">
             <h2 class="text-lg font-semibold">Project: {{ viewProject.title }}</h2>
+            <div v-if="viewProject.is_starred">
+              <span
+                class="px-2 py-1 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-700"
+              >
+                ⭐
+              </span>
+            </div>
           </div>
         </template>
         <template #body>
@@ -659,7 +704,36 @@ const showDescription = ref(true);
                 </transition>
               </div>
             </div>
-            <!-- Status & Starred -->
+            <div class="flex flex-col items-center gap-2 outline-1 p-2 rounded-xl">
+              <div
+                v-if="viewProject.notes.length > 0"
+                v-for="note in viewProject.notes"
+                :key="note.id"
+                class="w-full p-2 rounded-md outline-1 bg-card/50"
+              >
+                <p class="text-sm text-white">{{ note.content }}</p>
+                <p class="text-xs text-gray-100">
+                  By: {{ note.member?.name || "Unknown" }}
+                </p>
+              </div>
+              <div v-else>
+                <span class="text-sm italic">No notes yet...</span>
+              </div>
+              <div class="flex flex-row w-full outline-1 rounded-lg p-1">
+                <textarea
+                  class="w-full h-[30px] max-h-[100px] min-h-[30px] p-1 focus:outline-none"
+                  placeholder="Your note here..."
+                  v-model="note"
+                ></textarea>
+                <Button
+                  size="xs"
+                  class="ml-2 p-1 px-2 flex items-center h-[30px] self-end"
+                  @click="addNote"
+                >
+                  Add <Plus />
+                </Button>
+              </div>
+            </div>
             <div class="flex flex-row items-center gap-4">
               <div>
                 <p class="font-medium text-gray-600 dark:text-gray-300">Status</p>
@@ -675,14 +749,6 @@ const showDescription = ref(true);
                   }"
                 >
                   {{ formatStatus(viewProject.status) }}
-                </span>
-              </div>
-              <div v-if="viewProject.is_starred">
-                <p class="font-medium text-gray-600 dark:text-gray-300">Starred</p>
-                <span
-                  class="px-2 py-1 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-700"
-                >
-                  ⭐
                 </span>
               </div>
             </div>
