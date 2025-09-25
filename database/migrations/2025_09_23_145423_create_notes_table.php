@@ -17,7 +17,12 @@ return new class extends Migration
             $table->string("context"); // Can be for "proj" or "task"
             $table->string("context_id"); // Task or project id
             $table->unsignedBigInteger("member_id"); // member id
+            $table->enum("type", ["note", "question"])->default("note");
             $table->timestamps();
+
+            $table->foreignId("member_id")
+                  ->constrained("users")
+                  ->cascadeOnDelete();
         });
     }
 
