@@ -59,7 +59,7 @@ class ClientController extends Controller
         $user = auth()->user();
 
         $projects = $user->clientProjects()
-            ->with(['manager'])
+            ->with(['manager', 'notes'])
             ->paginate(10)
             ->through(function ($project) {
                 return [
@@ -68,7 +68,8 @@ class ClientController extends Controller
                     'status'      => $project->status,
                     'manager'     => $project->manager?->name ?? '—',
                     'description' => $project->description,
-                    'task_count'  => $project->tasks->count()
+                    'task_count'  => $project->tasks->count(),
+                    'notes'       => $project->notes
                 ];
             });
 

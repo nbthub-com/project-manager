@@ -45,7 +45,7 @@ class ProjectsModel extends Model
     {
         return $this->hasMany(NotesModel::class, 'context_id')
                     ->where('context', 'proj')
-                    ->with('member');
+                    ->with(['member']);
     }
     // Add this to prevent mass assignment issues
     protected $guarded = ['id'];

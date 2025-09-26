@@ -4,7 +4,7 @@ import { defineProps, ref, watch, computed, onMounted } from 'vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import Input from '@/components/ui/input/Input.vue';
 import Button from '@/components/ui/button/Button.vue';
-import { Edit, Search, Filter, X, Plus, WindArrowDown, ChevronDown, Hand } from 'lucide-vue-next';
+import { Edit, Search, Filter, X, Plus, WindArrowDown, ChevronDown, Hand, Delete } from 'lucide-vue-next';
 import Dialog from '@/components/ui/simpledialog/Dialog.vue';
 import InputError from '@/components/InputError.vue';
 import Select from '@/components/ui/select/Select.vue';
@@ -253,19 +253,29 @@ async function addNote() {
       context: "proj",
       context_id: viewProject.value.id,
       member_id: page.props.auth.user.id,
-      type: content.includes("?") ? "question" : "note",
     });
 
     // Add new note to the current project's notes
     viewProject.value.notes.push(response.data.note);
-        
+
     note.value = ""; // reset textarea after submit
   } catch (error) {
     console.error("Error adding note:", error);
     alert("Failed to add note. Please try again.");
   }
 }
+async function deleteNote(id) {
+  try {
+    await axios.delete(`/notes/${id}`)
 
+    // remove the deleted note from local state
+    viewProject.value.notes = viewProject.value.notes.filter(
+      note => note.id !== id
+    )
+  } catch (error) {
+    console.error("Failed to delete note:", error)
+  }
+}
 </script>
 
 <template>
@@ -665,7 +675,7 @@ async function addNote() {
         <template #body>
           <div v-if="viewProject" class="flex flex-col gap-4 text-sm p-2">
             <!-- Title & Manager -->
-            <div class="grid grid-cols-2 gap-4">
+            <div class="grid grid-cols-3 gap-1">
               <div>
                 <p class="font-medium text-gray-600 dark:text-gray-300">Manager</p>
                 <p class="text-base">{{ viewProject.manager.name }}</p>
@@ -673,6 +683,24 @@ async function addNote() {
               <div>
                 <p class="font-medium text-gray-600 dark:text-gray-300">Client</p>
                 <p class="text-base">{{ viewProject.client.name }}</p>
+              </div>
+              <div class="flex flex-row items-center gap-4">
+                <div>
+                  <p class="font-medium text-gray-600 dark:text-gray-300">Status</p>
+                  <span
+                    class="px-2 py-1 rounded-full text-xs font-semibold"
+                    :class="{
+                      'bg-yellow-100 text-yellow-800': viewProject.status === 'pending',
+                      'bg-blue-100 text-blue-800': viewProject.status === 'in_progress',
+                      'bg-purple-100 text-purple-800': viewProject.status === 'testing',
+                      'bg-indigo-100 text-indigo-800': viewProject.status === 'review',
+                      'bg-green-100 text-green-800': viewProject.status === 'completed',
+                      'bg-red-100 text-red-800': viewProject.status === 'cancelled',
+                    }"
+                  >
+                    {{ formatStatus(viewProject.status) }}
+                  </span>
+                </div>
               </div>
             </div>
             <!-- Description -->
@@ -704,52 +732,44 @@ async function addNote() {
                 </transition>
               </div>
             </div>
-            <div class="flex flex-col items-center gap-2 outline-1 p-2 rounded-xl">
+            <div class="flex flex-col rounded-xl bg-card shadow w-full gap-2">
               <div
-                v-if="viewProject.notes.length > 0"
-                v-for="note in viewProject.notes"
-                :key="note.id"
-                class="w-full p-2 rounded-md outline-1 bg-card/50"
+                v-if="viewProject.notes?.length > 0"
+                class="flex flex-col gap-2 max-h-60 overflow-y-auto pr-1"
               >
-                <p class="text-sm text-white">{{ note.content }}</p>
-                <p class="text-xs text-gray-100">
-                  By: {{ note.member?.name || "Unknown" }}
-                </p>
+                <div
+                  v-for="note in viewProject.notes"
+                  :key="note.id"
+                  class="p-2 rounded-lg bg-secondary border border-indigo-950 shadow-sm hover:shadow-md transition"
+                >
+                  <p class="text-sm text-white leading-snug">{{ note.content }}</p>
+                  <div class="w-full justify-between flex flex-row h-fit gap-2">
+                    <p class="text-xs text-gray-400">— {{ note.member.name }}</p>
+                    <div class="flex flex-row w-fit h-fit gap-2">
+                      <Button size="xs" variant="secondary"
+                        class="hover:bg-primary/20 p-0.5" @click="deleteNote(note.id)"><Delete /></Button>
+                    </div>
+                  </div>
+                </div>
               </div>
-              <div v-else>
-                <span class="text-sm italic">No notes yet...</span>
+              <div v-else class="text-center text-sm italic text-gray-500 py-3">
+                No notes yet...
               </div>
-              <div class="flex flex-row w-full outline-1 rounded-lg p-1">
+
+              <!-- Add note input -->
+              <div class="flex items-end gap-2 border-t border-white/10 pt-2">
                 <textarea
-                  class="w-full h-[30px] max-h-[100px] min-h-[30px] p-1 focus:outline-none"
-                  placeholder="Your note here..."
                   v-model="note"
+                  placeholder="Your note here..."
+                  class="flex-1 text-sm h-[33px] max-h-[100px] p-1.5 rounded-md bg-white/10 text-white placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-ring min-h-[33px]"
                 ></textarea>
                 <Button
                   size="xs"
-                  class="ml-2 p-1 px-2 flex items-center h-[30px] self-end"
+                  class="px-2 py-2 flex items-center gap-1 rounded-md shadow-sm transition text-white text-xs"
                   @click="addNote"
                 >
-                  Add <Plus />
+                  <Plus class="w-3 h-3" /> Add
                 </Button>
-              </div>
-            </div>
-            <div class="flex flex-row items-center gap-4">
-              <div>
-                <p class="font-medium text-gray-600 dark:text-gray-300">Status</p>
-                <span
-                  class="px-2 py-1 rounded-full text-xs font-semibold"
-                  :class="{
-                    'bg-yellow-100 text-yellow-800': viewProject.status === 'pending',
-                    'bg-blue-100 text-blue-800': viewProject.status === 'in_progress',
-                    'bg-purple-100 text-purple-800': viewProject.status === 'testing',
-                    'bg-indigo-100 text-indigo-800': viewProject.status === 'review',
-                    'bg-green-100 text-green-800': viewProject.status === 'completed',
-                    'bg-red-100 text-red-800': viewProject.status === 'cancelled',
-                  }"
-                >
-                  {{ formatStatus(viewProject.status) }}
-                </span>
               </div>
             </div>
           </div>

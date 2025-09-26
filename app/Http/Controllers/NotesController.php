@@ -20,7 +20,6 @@ class NotesController extends Controller
             'context'    => 'required|in:proj,task',
             'context_id' => 'required|integer',
             'member_id'  => 'required|exists:users,id',
-            'type'       => 'nullable|in:note,question',
         ]);
 
         $user = auth()->user();
@@ -57,7 +56,7 @@ class NotesController extends Controller
         }
 
         $created = NotesModel::create($request->only([
-            'content', 'context', 'context_id', 'member_id', 'type'
+            'content', 'context', 'context_id', 'member_id'
         ]));
         
         // Load relationships for the response
@@ -68,5 +67,14 @@ class NotesController extends Controller
             'note' => $created,
             'message' => 'Note created successfully!'
         ]);
-    }    
+    }
+    public function delete($id)
+    {
+        $note = NotesModel::find($id);
+        if ($note) {
+            $note->delete();
+            return response()->json(['message' => 'Note deleted successfully']);
+        }
+        return response()->json(['message' => 'Note not found'], 404);
+    }
 }

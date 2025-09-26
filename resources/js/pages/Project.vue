@@ -4,12 +4,13 @@ import { defineProps, ref, watch, computed } from 'vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import Input from '@/components/ui/input/Input.vue';
 import Button from '@/components/ui/button/Button.vue';
-import { Edit, Search, Filter, X, ChevronDown } from 'lucide-vue-next';
+import { Edit, Search, Filter, X, ChevronDown, Plus, Delete } from 'lucide-vue-next';
 import Dialog from '@/components/ui/simpledialog/Dialog.vue';
 import InputError from '@/components/InputError.vue';
 import Select from '@/components/ui/select/Select.vue';
 import Pagination from '@/components/ui/pagination/Pagination.vue';
 import Viewer from '@/components/ui/md/viewer.vue';
+import axios from 'axios';
 
 const breadcrumbs = [{ title: 'Projects', href: '/projects' }];
 const isFilterOpen = ref(false);
@@ -18,6 +19,8 @@ const isViewDialogOpen = ref(false);
 const editId = ref(null);
 const viewProject = ref(null);
 const showDescription = ref(true);
+const note = ref('')
+const page = usePage()
 
 const props = defineProps({
   projects: Object,
@@ -126,6 +129,42 @@ function openViewDialog(project) {
 function formatStatus(status) {
   return status.replace(/_/g, ' ').replace(/^./, str => str.toUpperCase());
 }
+
+async function addNote() {
+  const content = note.value.trim();
+  if (!content) return; // prevent empty notes
+
+  try {
+    const response = await axios.post("/notes", {
+      content,
+      context: "proj",
+      context_id: viewProject.value.id,
+      member_id: page.props.auth.user.id,
+    });
+
+    // Add new note to the current project's notes
+    viewProject.value.notes.push(response.data.note);
+
+    note.value = ""; // reset textarea after submit
+  } catch (error) {
+    console.error("Error adding note:", error);
+    alert("Failed to add note. Please try again.");
+  }
+}
+
+async function deleteNote(id) {
+  try {
+    await axios.delete(`/notes/${id}`)
+
+    // remove the deleted note from local state
+    viewProject.value.notes = viewProject.value.notes.filter(
+      note => note.id !== id
+    )
+  } catch (error) {
+    console.error("Failed to delete note:", error)
+  }
+}
+
 </script>
 
 <template>
@@ -152,10 +191,7 @@ function formatStatus(status) {
               v-if="hasActiveFilters()"
               class="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-xs"
             >
-              {{
-                [filterId, filterManager, filterStatus].filter(Boolean)
-                  .length
-              }}
+              {{ [filterId, filterManager, filterStatus].filter(Boolean).length }}
             </span>
           </Button>
         </div>
@@ -345,7 +381,6 @@ function formatStatus(status) {
               <label class="block text-sm font-medium mb-1">Status</label>
               <Select v-model="filterStatus" :options="statusOptions" class="w-full" />
             </div>
-
           </div>
         </template>
 
@@ -379,7 +414,7 @@ function formatStatus(status) {
         <template #body>
           <div v-if="viewProject" class="flex flex-col gap-4 text-sm p-2">
             <!-- Title & Manager -->
-            <div class="grid grid-cols-2 gap-4">
+            <div class="grid grid-cols-3 gap-1">
               <div>
                 <p class="font-medium text-gray-600 dark:text-gray-300">Manager</p>
                 <p class="text-base">{{ viewProject.manager.name }}</p>
@@ -388,6 +423,24 @@ function formatStatus(status) {
                 <p class="font-medium text-gray-600 dark:text-gray-300">Client</p>
                 <p class="text-base">{{ viewProject.client.name }}</p>
               </div>
+              <div class="flex flex-row items-center gap-4">
+                <div>
+                  <p class="font-medium text-gray-600 dark:text-gray-300">Status</p>
+                  <span
+                    class="px-2 py-1 rounded-full text-xs font-semibold"
+                    :class="{
+                      'bg-yellow-100 text-yellow-800': viewProject.status === 'pending',
+                      'bg-blue-100 text-blue-800': viewProject.status === 'in_progress',
+                      'bg-purple-100 text-purple-800': viewProject.status === 'testing',
+                      'bg-indigo-100 text-indigo-800': viewProject.status === 'review',
+                      'bg-green-100 text-green-800': viewProject.status === 'completed',
+                      'bg-red-100 text-red-800': viewProject.status === 'cancelled',
+                    }"
+                  >
+                    {{ formatStatus(viewProject.status) }}
+                  </span>
+                </div>
+            </div>
             </div>
             <!-- Description -->
             <div v-if="viewProject.description?.length > 0">
@@ -418,68 +471,102 @@ function formatStatus(status) {
                 </transition>
               </div>
             </div>
-            <div class="flex flex-row items-center gap-4">
-              <div>
-                <p class="font-medium text-gray-600 dark:text-gray-300">Status</p>
-                <span
-                  class="px-2 py-1 rounded-full text-xs font-semibold"
-                  :class="{
-                    'bg-yellow-100 text-yellow-800': viewProject.status === 'pending',
-                    'bg-blue-100 text-blue-800': viewProject.status === 'in_progress',
-                    'bg-purple-100 text-purple-800': viewProject.status === 'testing',
-                    'bg-indigo-100 text-indigo-800': viewProject.status === 'review',
-                    'bg-green-100 text-green-800': viewProject.status === 'completed',
-                    'bg-red-100 text-red-800': viewProject.status === 'cancelled',
-                  }"
+            <div class="flex flex-col rounded-xl bg-card shadow w-full gap-2">
+              <div
+                v-if="viewProject.notes?.length > 0"
+                class="flex flex-col gap-2 max-h-60 overflow-y-auto pr-1"
+              >
+                <div
+                  v-for="note in viewProject.notes"
+                  :key="note.id"
+                  class="p-2 rounded-lg bg-secondary border border-indigo-950 shadow-sm hover:shadow-md transition"
                 >
-                  {{ formatStatus(viewProject.status) }}
-                </span>
+                  <p class="text-sm text-white leading-snug">{{ note.content }}</p>
+                  <div class="w-full justify-between flex flex-row h-fit gap-2">
+                    <p class="text-xs text-gray-400">— {{ note.member.name }}</p>
+                    <div class="flex flex-row w-fit h-fit gap-2">
+                      <Button size="xs" variant="secondary"
+                        class="hover:bg-primary/20 p-0.5" @click="deleteNote(note.id)"><Delete /></Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div v-else class="text-center text-sm italic text-gray-500 py-3">
+                No notes yet...
+              </div>
+
+              <!-- Add note input -->
+              <div class="flex items-end gap-2 border-t border-white/10 pt-2">
+                <textarea
+                  v-model="note"
+                  placeholder="Your note here..."
+                  class="flex-1 text-sm h-[33px] max-h-[100px] p-1.5 
+                         rounded-md bg-white/10 text-white
+                       placeholder-gray-400 focus:outline-none
+                         focus:ring-1 focus:ring-ring
+                         min-h-[33px]"
+                ></textarea>
+                <Button
+                  size="xs"
+                  class="px-2 py-2 flex items-center gap-1
+                         rounded-md shadow-sm transition
+                       text-white text-xs "
+                  @click="addNote"
+                >
+                  <Plus class="w-3 h-3" /> Add
+                </Button>
               </div>
             </div>
           </div>
         </template>
       </Dialog>
-    <Dialog v-model="isDialogOpen">
-      <template #header>
-        <h2 class="text-lg font-semibold">Edit Project</h2>
-      </template>
-      <template #body>
-        <form @submit.prevent="submitForm" class="flex flex-col gap-3">
-          <div>
-            <label class="block text-sm font-medium mb-1">Title</label>
-            <Input v-model="form.title" placeholder="Project Title" />
-            <InputError :message="form.errors.title" />
-          </div>
+      <Dialog v-model="isDialogOpen">
+        <template #header>
+          <h2 class="text-lg font-semibold">Edit Project</h2>
+        </template>
+        <template #body>
+          <form @submit.prevent="submitForm" class="flex flex-col gap-3">
+            <div>
+              <label class="block text-sm font-medium mb-1">Title</label>
+              <Input v-model="form.title" placeholder="Project Title" />
+              <InputError :message="form.errors.title" />
+            </div>
 
-          <div>
-            <label class="block text-sm font-medium mb-1">Client</label>
-            <Select v-model="form.client_id" :options="clientOptions" placeholder="Select a Client" />
-            <InputError :message="form.errors.client_id" />
-          </div>
+            <div>
+              <label class="block text-sm font-medium mb-1">Client</label>
+              <Select
+                v-model="form.client_id"
+                :options="clientOptions"
+                placeholder="Select a Client"
+              />
+              <InputError :message="form.errors.client_id" />
+            </div>
 
-          <div>
-            <label class="text-sm font-medium mb-1 flex flex-row gap-2 items-baseline"
-              >Description
-              <p class="text-xs font-extralight">
-                (markdown & tailwind supported!)
-              </p>
-            </label>
-            <textarea v-model="form.description" class="border rounded p-2 text-sm w-full" rows="3"></textarea>
-            <InputError :message="form.errors.description" />
-          </div>
+            <div>
+              <label class="text-sm font-medium mb-1 flex flex-row gap-2 items-baseline"
+                >Description
+                <p class="text-xs font-extralight">(markdown & tailwind supported!)</p>
+              </label>
+              <textarea
+                v-model="form.description"
+                class="border rounded p-2 text-sm w-full"
+                rows="3"
+              ></textarea>
+              <InputError :message="form.errors.description" />
+            </div>
 
-          <div>
-            <label class="block text-sm font-medium mb-1">Status</label>
-            <Select v-model="form.status" :options="statusOptions" />
-            <InputError :message="form.errors.status" />
-          </div>
-        </form>
-      </template>
-      <template #footer>
-        <Button variant="outline" @click="isDialogOpen = false">Cancel</Button>
-        <Button @click="submitForm" :disabled="form.processing">Update</Button>
-      </template>
-    </Dialog>
+            <div>
+              <label class="block text-sm font-medium mb-1">Status</label>
+              <Select v-model="form.status" :options="statusOptions" />
+              <InputError :message="form.errors.status" />
+            </div>
+          </form>
+        </template>
+        <template #footer>
+          <Button variant="outline" @click="isDialogOpen = false">Cancel</Button>
+          <Button @click="submitForm" :disabled="form.processing">Update</Button>
+        </template>
+      </Dialog>
     </div>
   </AppLayout>
 </template>

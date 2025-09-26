@@ -16,7 +16,6 @@ class NotesModel extends Model
         'context',
         'context_id',
         'member_id',
-        'type',
     ];
 
     public function member()
@@ -36,17 +35,15 @@ class NotesModel extends Model
                     ->where('context', 'task');
     }
 
-    public static function forProjects($type = null)
+    public static function forProjects()
     {
         return static::query()
-            ->where('context', 'proj')
-            ->when($type, fn($q) => $q->where('type', $type));
+            ->where('context', 'proj');
     }
 
-    public static function forTasks($type = null)
+    public static function forTasks()
     {
         return static::query()
-            ->where('context', 'task')
-            ->when($type, fn($q) => $q->where('type', $type));
+            ->where('context', 'task');
     }
 }

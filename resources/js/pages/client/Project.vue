@@ -2,11 +2,15 @@
 import AppLayout from "@/layouts/AppLayout.vue";
 import { defineProps, ref } from "vue";
 import { toTitleCase } from "@/lib/utils";
-import { Calendar, ChevronDown } from "lucide-vue-next";
+import { Calendar, ChevronDown, Delete, Plus } from "lucide-vue-next";
 import Pagination from "@/components/ui/pagination/Pagination.vue";
 import Dialog from "@/components/ui/simpledialog/Dialog.vue";
 import Viewer from "@/components/ui/md/viewer.vue";
+import axios from "axios";
+import { usePage } from "@inertiajs/vue3";
+import Button from "@/components/ui/button/Button.vue";
 
+const page = usePage();
 const props = defineProps(["projects"]);
 const viewProject = ref();
 const isViewDialogOpen = ref(false);
@@ -15,7 +19,42 @@ function openProject(project) {
   viewProject.value = project;
   isViewDialogOpen.value = true;
 }
+async function addNote() {
+  const content = note.value.trim();
+  if (!content) return; // prevent empty notes
+
+  try {
+    const response = await axios.post("/notes", {
+      content,
+      context: "proj",
+      context_id: viewProject.value.id,
+      member_id: page.props.auth.user.id,
+    });
+
+    // Add new note to the current project's notes
+    viewProject.value.notes.push(response.data.note);
+
+    note.value = ""; // reset textarea after submit
+  } catch (error) {
+    console.error("Error adding note:", error);
+    alert("Failed to add note. Please try again.");
+  }
+}
+const note = ref("");
 const showDescription = ref(true);
+async function deleteNote(id) {
+  try {
+    await axios.delete(`/notes/${id}`)
+
+    // remove the deleted note from local state
+    viewProject.value.notes = viewProject.value.notes.filter(
+      note => note.id !== id
+    )
+  } catch (error) {
+    console.error("Failed to delete note:", error)
+  }
+}
+
 </script>
 
 <template>
@@ -62,13 +101,15 @@ const showDescription = ref(true);
               <span class="font-bold">{{ project.task_count }}</span>
             </p>
           </div>
-              <p class="rounded-md px-2 py-1 mt-1 text-sm bg-gradient-to-r from-primary to-primary/50">
-                {{
-                  project.description.length > 255
-                    ? project.description.slice(0, 255) + "..."
-                    : project.description
-                }}
-              </p>
+          <p
+            class="rounded-md px-2 py-1 mt-1 text-sm bg-gradient-to-r from-primary to-primary/50"
+          >
+            {{
+              project.description.length > 255
+                ? project.description.slice(0, 255) + "..."
+                : project.description
+            }}
+          </p>
 
           <!-- Status -->
           <div
@@ -134,7 +175,7 @@ const showDescription = ref(true);
     <template #body>
       <div v-if="viewProject" class="flex flex-col gap-6 text-xl p-2 animate-fadeIn">
         <!-- Info grid -->
-        <div class="grid grid-cols-3 gap-4">
+        <div class="grid grid-cols-3 gap-1">
           <div>
             <p class="text-xs uppercase tracking-wide text-gray-500">Manager</p>
             <p class="font-semibold captitalize">{{ viewProject.manager }}</p>
@@ -142,6 +183,22 @@ const showDescription = ref(true);
           <div>
             <p class="text-xs uppercase tracking-wide text-gray-500">Tasks</p>
             <p class="font-semibold captitalize">{{ viewProject.task_count }}</p>
+          </div>
+          <div>
+            <p class="text-xs uppercase tracking-wide text-gray-500">Status</p>
+            <span
+              class="px-2 py-1 rounded-full text-sm font-semibold capitalize"
+              :class="{
+                'bg-yellow-100 text-yellow-800': viewProject.status === 'pending',
+                'bg-blue-100 text-blue-800': viewProject.status === 'in_progress',
+                'bg-purple-100 text-purple-800': viewProject.status === 'testing',
+                'bg-indigo-100 text-indigo-800': viewProject.status === 'review',
+                'bg-green-100 text-green-800': viewProject.status === 'completed',
+                'bg-red-100 text-red-800': viewProject.status === 'cancelled',
+              }"
+            >
+              {{ toTitleCase(viewProject.status.replace("_", " ")) }}
+            </span>
           </div>
         </div>
 
@@ -171,20 +228,45 @@ const showDescription = ref(true);
             </div>
           </transition>
         </div>
-        <div>
-          <span
-            class="px-2 py-1 rounded-full text-sm font-semibold capitalize"
-            :class="{
-              'bg-yellow-100 text-yellow-800': viewProject.status === 'pending',
-              'bg-blue-100 text-blue-800': viewProject.status === 'in_progress',
-              'bg-purple-100 text-purple-800': viewProject.status === 'testing',
-              'bg-indigo-100 text-indigo-800': viewProject.status === 'review',
-              'bg-green-100 text-green-800': viewProject.status === 'completed',
-              'bg-red-100 text-red-800': viewProject.status === 'cancelled',
-            }"
+        <div class="flex flex-col rounded-xl bg-card shadow w-full gap-2">
+          <div
+            v-if="viewProject.notes?.length > 0"
+            class="flex flex-col gap-2 max-h-60 overflow-y-auto pr-1"
           >
-            {{ viewProject.status.replace("_", " ") }}
-          </span>
+            <div
+              v-for="note in viewProject.notes"
+              :key="note.id"
+              class="p-2 rounded-lg bg-secondary border border-indigo-950 shadow-sm hover:shadow-md transition"
+            >
+              <p class="text-sm text-white leading-snug">{{ note.content }}</p>
+                  <div class="w-full justify-between flex flex-row h-fit gap-2">
+                    <p class="text-xs text-gray-400">— {{ note.member.name }}</p>
+                    <div class="flex flex-row w-fit h-fit gap-2">
+                      <Button size="xs" variant="secondary"
+                        class="hover:bg-primary/20 p-0.5" @click="deleteNote(note.id)"><Delete /></Button>
+                    </div>
+                  </div>
+            </div>
+          </div>
+          <div v-else class="text-center text-sm italic text-gray-500 py-3">
+            No notes yet...
+          </div>
+
+          <!-- Add note input -->
+          <div class="flex items-end gap-2 border-t border-white/10 pt-2">
+            <textarea
+              v-model="note"
+              placeholder="Your note here..."
+              class="flex-1 text-sm h-[33px] max-h-[100px] p-1.5 rounded-md bg-white/10 text-white placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-ring min-h-[33px]"
+            ></textarea>
+            <Button
+              size="xs"
+              class="px-2 py-2 flex items-center gap-1 rounded-md shadow-sm transition text-white text-xs"
+              @click="addNote"
+            >
+              <Plus class="w-3 h-3" /> Add
+            </Button>
+          </div>
         </div>
       </div>
     </template>

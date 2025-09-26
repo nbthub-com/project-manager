@@ -35,9 +35,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // Notes
     Route::post('/notes', [NotesController::class, 'create']);
+    Route::delete('/notes/{id}', [NotesController::class, 'delete']);
 });
-
-
 
 require __DIR__.'/settings.php';
 require __DIR__.'/auth.php';

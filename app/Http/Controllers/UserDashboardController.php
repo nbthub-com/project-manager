@@ -32,7 +32,7 @@ class UserDashboardController extends Controller
     {
         $user = auth()->user();
         $projects = $user->managedProjects()
-            ->with(['manager', 'client'])
+            ->with(['manager', 'client', 'notes'])
             ->when($request->filter_id, fn($q) => $q->where('id', $request->filter_id))
             ->when($request->filter_manager, fn($q) => 
                 $q->whereHas('manager', fn($m) => $m->where('name', 'like', "%{$request->filter_manager}%"))
