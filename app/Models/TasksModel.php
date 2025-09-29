@@ -37,9 +37,20 @@ class TasksModel extends Model
         return $this->belongsTo(User::class, 'to_id');
     }
 
-    // ProjectsModel
+    // Project
     public function project()
     {
         return $this->belongsTo(ProjectsModel::class, 'pr_id');
     }
+
+    // Notes relationship for tasks
+    public function notes()
+    {
+        return $this->hasMany(NotesModel::class, 'context_id')
+                    ->where('context', 'task')
+                    ->with(['member']);
+    }
+
+    // Add this to prevent mass assignment issues
+    protected $guarded = ['id'];
 }

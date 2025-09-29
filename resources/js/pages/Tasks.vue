@@ -22,6 +22,8 @@ import {
 import Picker from "@/components/ui/date/Picker.vue";
 import Viewer from "@/components/ui/md/viewer.vue";
 import { formatDate } from "@/lib/utils.ts";
+import axios from "axios";
+import { Delete, Plus } from "lucide-vue-next";
 
 const breadcrumbs = [{ title: "Tasks", href: "/tasks" }];
 const props = defineProps({
@@ -32,8 +34,8 @@ const props = defineProps({
   filters: Object,
 });
 const user = usePage().props.auth.user;
+const role = user.role;
 
-// 🔑 Local reactive state
 const s_query = ref(props.filters?.search || "");
 const perPage = ref(props.filters?.per_page || 10);
 const currentPage = ref(props.tasks?.current_page || 1);
@@ -354,7 +356,53 @@ function getPriorityColor(priority) {
       return "bg-gray-500";
   }
 }
+
+onMounted(() => {
+  // Set CSRF token for axios requests
+  const token = document
+    .querySelector('meta[name="csrf-token"]')
+    ?.getAttribute("content");
+  if (token) {
+    axios.defaults.headers.common["X-CSRF-TOKEN"] = token;
+  }
+});
+
 const showDescription = ref(true);
+const note = ref("");
+
+// Add this after the existing functions
+async function addNote() {
+  const content = note.value.trim();
+  if (!content) return; // prevent empty notes
+
+  try {
+    const response = await axios.post("/notes", {
+      content,
+      context: "task",
+      context_id: viewTask.value.id,
+      member_id: user.id,
+    });
+
+    // Add new note to the current task's notes
+    viewTask.value.notes.push(response.data.note);
+
+    note.value = ""; // reset textarea after submit
+  } catch (error) {
+    console.error("Error adding note:", error);
+    alert("Failed to add note. Please try again.");
+  }
+}
+
+async function deleteNote(id) {
+  try {
+    await axios.delete(`/notes/${id}`);
+
+    // remove the deleted note from local state
+    viewTask.value.notes = viewTask.value.notes.filter((note) => note.id !== id);
+  } catch (error) {
+    console.error("Failed to delete note:", error);
+  }
+}
 </script>
 
 <template>
@@ -709,47 +757,32 @@ const showDescription = ref(true);
           <!-- Status Filter -->
           <div>
             <label class="block text-sm font-medium mb-1">Status</label>
-            <Dropdown
-              v-model="filterStatus"
-              :options="statusOptions"
-            />
+            <Dropdown v-model="filterStatus" :options="statusOptions" />
           </div>
 
           <!-- Priority Filter -->
           <div>
             <label class="block text-sm font-medium mb-1">Priority</label>
-            <Dropdown
-              v-model="filterPriority"
-              :options="priorityOptions"
-            />
+            <Dropdown v-model="filterPriority" :options="priorityOptions" />
           </div>
 
           <!-- Manager Filter -->
           <div>
             <label class="block text-sm font-medium mb-1">Manager</label>
-            <Dropdown
-              v-model="filterManager"
-              :options="managerOptions"
-            />
+            <Dropdown v-model="filterManager" :options="managerOptions" />
           </div>
 
           <!-- Assignee Filter -->
           <div>
             <label class="block text-sm font-medium mb-1">Assignee</label>
-            <Dropdown
-              v-model="filterAssignee"
-              :options="assigneeOptions"
-            />
+            <Dropdown v-model="filterAssignee" :options="assigneeOptions" />
           </div>
 
           <!-- Project Filter -->
           <div class="sm:col-span-2">
             <!-- make this span full width -->
             <label class="block text-sm font-medium mb-1">Project</label>
-            <Dropdown
-              v-model="filterProject"
-              :options="projectOptions"
-            />
+            <Dropdown v-model="filterProject" :options="projectOptions" />
           </div>
         </div>
       </template>
@@ -789,9 +822,7 @@ const showDescription = ref(true);
           <div>
             <label class="text-sm font-medium mb-1 flex flex-row gap-2 items-baseline"
               >Description
-              <p class="text-xs font-extralight">
-                (markdown & tailwind supported!)
-              </p>
+              <p class="text-xs font-extralight">(markdown & tailwind supported!)</p>
             </label>
             <textarea
               v-model="form.description"
@@ -962,31 +993,76 @@ const showDescription = ref(true);
             </div>
           </div>
           <!-- Description -->
-        <div class="space-y-1">
-          <div
-            class="w-full flex items-center justify-between text-left cursor-pointer select-none"
-            @click="showDescription = !showDescription"
-          >
-            <p class="text-xs uppercase tracking-wide text-gray-500">Description</p>
-            <ChevronDown
-              class="w-4 h-4 transition-transform duration-300"
-              :class="{ 'rotate-270': !showDescription }"
-            />
-          </div>
-
-          <transition
-            enter-active-class="transition duration-300 ease-out"
-            enter-from-class="opacity-0 max-h-0"
-            enter-to-class="opacity-100 max-h-[500px]"
-            leave-active-class="transition duration-300 ease-in"
-            leave-from-class="opacity-100 max-h-[500px]"
-            leave-to-class="opacity-0 max-h-0"
-          >
-            <div v-show="showDescription" class="overflow-hidden">
-              <Viewer :source="viewTask.description" />
+          <div class="space-y-1">
+            <div
+              class="w-full flex items-center justify-between text-left cursor-pointer select-none"
+              @click="showDescription = !showDescription"
+            >
+              <p class="text-xs uppercase tracking-wide text-gray-500">Description</p>
+              <ChevronDown
+                class="w-4 h-4 transition-transform duration-300"
+                :class="{ 'rotate-270': !showDescription }"
+              />
             </div>
-          </transition>
-        </div>
+
+            <transition
+              enter-active-class="transition duration-300 ease-out"
+              enter-from-class="opacity-0 max-h-0"
+              enter-to-class="opacity-100 max-h-[500px]"
+              leave-active-class="transition duration-300 ease-in"
+              leave-from-class="opacity-100 max-h-[500px]"
+              leave-to-class="opacity-0 max-h-0"
+            >
+              <div v-show="showDescription" class="overflow-hidden">
+                <Viewer :source="viewTask.description" />
+              </div>
+            </transition>
+          </div>
+          <div class="flex flex-col rounded-xl bg-card shadow w-full gap-2">
+            <div
+              v-if="viewTask.notes?.length > 0"
+              class="flex flex-col gap-2 max-h-60 overflow-y-auto pr-1"
+            >
+              <div
+                v-for="note in viewTask.notes"
+                :key="note.id"
+                class="p-2 rounded-lg bg-secondary border border-indigo-950 shadow-sm hover:shadow-md transition"
+              >
+                <p class="text-sm text-white leading-snug">{{ note.content }}</p>
+                <div class="w-full justify-between flex flex-row h-fit gap-2">
+                  <p class="text-xs text-gray-400">— {{ note.member.name }}</p>
+                  <div v-if="role === 'admin'" class="flex flex-row w-fit h-fit gap-2">
+                    <Button
+                      size="xs"
+                      variant="secondary"
+                      class="hover:bg-primary/20 p-0.5"
+                      @click="deleteNote(note.id)"
+                      ><Delete
+                    /></Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div v-else class="text-center text-sm italic text-gray-500 py-3">
+              No notes yet...
+            </div>
+
+            <!-- Add note input -->
+            <div class="flex items-end gap-2 border-t border-white/10 pt-2">
+              <textarea
+                v-model="note"
+                placeholder="Your note here..."
+                class="flex-1 text-sm h-[33px] max-h-[100px] p-1.5 rounded-md bg-white/10 text-white placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-ring min-h-[33px]"
+              ></textarea>
+              <Button
+                size="xs"
+                class="px-2 py-2 flex items-center gap-1 rounded-md shadow-sm transition text-white text-xs"
+                @click="addNote"
+              >
+                <Plus class="w-3 h-3" /> Add
+              </Button>
+            </div>
+          </div>
         </div>
       </template>
     </Dialog>

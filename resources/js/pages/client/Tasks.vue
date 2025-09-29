@@ -1,22 +1,73 @@
 <script setup>
 import AppLayout from "@/layouts/AppLayout.vue";
-import { defineProps } from "vue";
+import { defineProps, onMounted } from "vue";
 import { formatDate, toTitleCase } from "@/lib/utils";
-import { AlertTriangle, Calendar, ChevronDown, Flame, Leaf } from "lucide-vue-next";
+import { AlertTriangle, Calendar, ChevronDown, Delete, Flame, Leaf, Plus } from "lucide-vue-next";
 import { ref } from "vue";
 import Pagination from "@/components/ui/pagination/Pagination.vue";
 import Dialog from "@/components/ui/simpledialog/Dialog.vue";
 import Viewer from "@/components/ui/md/viewer.vue";
+import Button from "@/components/ui/button/Button.vue";
+import axios from 'axios';
+import { usePage } from "@inertiajs/vue3";
 
 const props = defineProps(["tasks"]);
 const viewTask = ref();
 const isViewDialogOpen = ref(false);
+const page = usePage();
 
 function openTask(task) {
   viewTask.value = task;
   isViewDialogOpen.value = true;
 }
+onMounted(() => {
+  // Set CSRF token for axios requests
+  const token = document
+    .querySelector('meta[name="csrf-token"]')
+    ?.getAttribute("content");
+  if (token) {
+    axios.defaults.headers.common["X-CSRF-TOKEN"] = token;
+  }
+});
+
 const showDescription = ref(true);
+const note = ref("");
+
+// Add this after the existing functions
+async function addNote() {
+  const content = note.value.trim();
+  if (!content) return; // prevent empty notes
+
+  try {
+    const response = await axios.post("/notes", {
+      content,
+      context: "task",
+      context_id: viewTask.value.id,
+      member_id: user.id,
+    });
+
+    // Add new note to the current task's notes
+    viewTask.value.notes.push(response.data.note);
+
+    note.value = ""; // reset textarea after submit
+  } catch (error) {
+    console.error("Error adding note:", error);
+    alert("Failed to add note. Please try again.");
+  }
+}
+
+async function deleteNote(id) {
+  try {
+    await axios.delete(`/notes/${id}`);
+
+    // remove the deleted note from local state
+    viewTask.value.notes = viewTask.value.notes.filter((note) => note.id !== id);
+  } catch (error) {
+    console.error("Failed to delete note:", error);
+  }
+}
+const user = page.props.auth.user;
+const role = user.role;
 </script>
 
 <template>
@@ -57,11 +108,15 @@ const showDescription = ref(true);
           <div class="flex flex-col gap-1">
             <p class="text-sm opacity-90">
               Project:
-              <span class="font-bold capitalize text-foreground">{{ toTitleCase(task.project) }}</span>
+              <span class="font-bold capitalize text-foreground">{{
+                toTitleCase(task.project)
+              }}</span>
             </p>
             <p class="text-sm opacity-90">
               Manager:
-              <span class="font-bold capitalize text-foreground">{{ toTitleCase(task.manager) }}</span>
+              <span class="font-bold capitalize text-foreground">{{
+                toTitleCase(task.manager)
+              }}</span>
             </p>
             <!-- Priority and Deadline -->
             <div class="flex justify-between items-center mt-2">
@@ -160,7 +215,7 @@ const showDescription = ref(true);
         <div class="grid grid-cols-3">
           <div class="space-y-1">
             <p class="text-xs uppercase tracking-wide text-gray-500">Manager</p>
-            <p class="font-semibold captitalize ">{{ viewTask.manager }}</p>
+            <p class="font-semibold captitalize">{{ viewTask.manager }}</p>
           </div>
           <div class="space-y-1">
             <p class="text-xs uppercase tracking-wide text-gray-500">Project</p>
@@ -201,6 +256,51 @@ const showDescription = ref(true);
               <Viewer :source="viewTask.description" />
             </div>
           </transition>
+        </div>
+        <div class="flex flex-col rounded-xl bg-card shadow w-full gap-2">
+          <div
+            v-if="viewTask.notes?.length > 0"
+            class="flex flex-col gap-2 max-h-60 overflow-y-auto pr-1"
+          >
+            <div
+              v-for="note in viewTask.notes"
+              :key="note.id"
+              class="p-2 rounded-lg bg-secondary border border-indigo-950 shadow-sm hover:shadow-md transition"
+            >
+              <p class="text-sm text-white leading-snug">{{ note.content }}</p>
+              <div class="w-full justify-between flex flex-row h-fit gap-2">
+                <p class="text-xs text-gray-400">— {{ note.member.name }}</p>
+                <div v-if="role === 'admin'" class="flex flex-row w-fit h-fit gap-2">
+                  <Button
+                    size="xs"
+                    variant="secondary"
+                    class="hover:bg-primary/20 p-0.5"
+                    @click="deleteNote(note.id)"
+                    ><Delete
+                  /></Button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div v-else class="text-center text-sm italic text-gray-500 py-3">
+            No notes yet...
+          </div>
+
+          <!-- Add note input -->
+          <div class="flex items-end gap-2 border-t border-white/10 pt-2">
+            <textarea
+              v-model="note"
+              placeholder="Your note here..."
+              class="flex-1 text-sm h-[33px] max-h-[100px] p-1.5 rounded-md bg-white/10 text-white placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-ring min-h-[33px]"
+            ></textarea>
+            <Button
+              size="xs"
+              class="px-2 py-2 flex items-center gap-1 rounded-md shadow-sm transition text-white text-xs"
+              @click="addNote"
+            >
+              <Plus class="w-3 h-3" /> Add
+            </Button>
+          </div>
         </div>
       </div>
     </template>

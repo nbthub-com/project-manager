@@ -35,7 +35,7 @@ class ClientController extends Controller
         $user = auth()->user();
 
         $tasks = $user->clientTasks()
-            ->with(['project', 'manager'])
+            ->with(['project', 'manager', 'notes.member'])
             ->paginate(10)
             ->through(function ($task) {
                 return [
@@ -46,7 +46,8 @@ class ClientController extends Controller
                     'deadline'    => $task->deadline,
                     'project'     => $task->project?->title ?? '—',
                     'manager'     => $task->manager?->name ?? '—',
-                    'description' => $task->description
+                    'description' => $task->description,
+                    'notes'       => $task->notes
                 ];
             });
 

@@ -18,10 +18,10 @@ class TasksController extends Controller
         
         // Fetch tasks depending on role
         if ($user->role === 'admin') {
-            $tasksQuery = TasksModel::with(['manager', 'assignee', 'project'])
+            $tasksQuery = TasksModel::with(['manager', 'assignee', 'project', 'notes.member'])
                 ->latest();
         } else {
-            $tasksQuery = TasksModel::with(['manager', 'assignee', 'project'])
+            $tasksQuery = TasksModel::with(['manager', 'assignee', 'project', 'notes.member'])
                 ->where(function ($q) use ($user) {
                     $q->where('to_id', $user->id)
                     ->orWhere('by_id', $user->id);
@@ -103,6 +103,18 @@ class TasksController extends Controller
                 'project'     => $task->project?->title,
                 'created_at'  => $task->created_at->toDateTimeString(),
                 'updated_at'  => $task->updated_at->toDateTimeString(),
+                'notes'       => $task->notes->map(function ($note) {
+                    return [
+                        'id' => $note->id,
+                        'content' => $note->content,
+                        'member' => [
+                            'id' => $note->member->id,
+                            'name' => $note->member->name
+                        ],
+                        'created_at' => $note->created_at->toDateTimeString(),
+                        'updated_at' => $note->updated_at->toDateTimeString(),
+                    ];
+                })
             ];
         });
         
