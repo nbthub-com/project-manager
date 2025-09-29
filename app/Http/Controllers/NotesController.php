@@ -70,6 +70,10 @@ class NotesController extends Controller
     }
     public function delete($id)
     {
+        $user = auth()->user();
+        if ($user->role !== 'admin') {
+            return response()->json(['message' => 'You are not authorized to delete this note.'], 404);
+        }
         $note = NotesModel::find($id);
         if ($note) {
             $note->delete();

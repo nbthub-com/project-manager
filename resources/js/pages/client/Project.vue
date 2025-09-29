@@ -54,6 +54,8 @@ async function deleteNote(id) {
     console.error("Failed to delete note:", error)
   }
 }
+const user = usePage().props.auth.user;
+const role = user.role;
 
 </script>
 
@@ -241,7 +243,7 @@ async function deleteNote(id) {
               <p class="text-sm text-white leading-snug">{{ note.content }}</p>
                   <div class="w-full justify-between flex flex-row h-fit gap-2">
                     <p class="text-xs text-gray-400">— {{ note.member.name }}</p>
-                    <div class="flex flex-row w-fit h-fit gap-2">
+                    <div v-if="role === 'admin'" class="flex flex-row w-fit h-fit gap-2">
                       <Button size="xs" variant="secondary"
                         class="hover:bg-primary/20 p-0.5" @click="deleteNote(note.id)"><Delete /></Button>
                     </div>
