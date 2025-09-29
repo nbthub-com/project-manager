@@ -95,12 +95,8 @@ const role = user.role;
             <p class="text-sm opacity-90">
               Manager:
               <span class="font-bold capitalize text-foreground">
-                {{ project.manager }}
+                {{ project.manager.name }}
               </span>
-            </p>
-            <p class="text-sm opacity-90">
-              Tasks:
-              <span class="font-bold">{{ project.task_count }}</span>
             </p>
           </div>
           <p
@@ -180,11 +176,7 @@ const role = user.role;
         <div class="grid grid-cols-3 gap-1">
           <div>
             <p class="text-xs uppercase tracking-wide text-gray-500">Manager</p>
-            <p class="font-semibold captitalize">{{ viewProject.manager }}</p>
-          </div>
-          <div>
-            <p class="text-xs uppercase tracking-wide text-gray-500">Tasks</p>
-            <p class="font-semibold captitalize">{{ viewProject.task_count }}</p>
+            <p class="font-semibold captitalize">{{ viewProject.manager.name }}</p>
           </div>
           <div>
             <p class="text-xs uppercase tracking-wide text-gray-500">Status</p>

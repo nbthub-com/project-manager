@@ -21,7 +21,7 @@ class ProjectsController extends Controller
         
         // Start with base query using relationships
         $query = ProjectsModel::with(['manager', 'client', 'notes.member'])
-            ->orderBy('projects.id', 'desc');
+            ->orderBy('projects.title', 'asc');
         
         if ($filterId) {
             $query->where('projects.id', $filterId);
