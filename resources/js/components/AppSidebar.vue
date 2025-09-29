@@ -29,7 +29,7 @@ const mainNavItems = computed<NavItem[]>(() => {
     },
     {
       title: 'Tasks',
-      href: role === 'client' ? '/client/tasks' : '/tasks',
+      href: '/tasks',
       icon: List,
     }
   ];

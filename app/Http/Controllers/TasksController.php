@@ -23,8 +23,11 @@ class TasksController extends Controller
         } else {
             $tasksQuery = TasksModel::with(['manager', 'assignee', 'project', 'notes.member'])
                 ->where(function ($q) use ($user) {
-                    $q->where('to_id', $user->id)
-                    ->orWhere('by_id', $user->id);
+                    $q->where('to_id', $user->id)  // Assignee
+                    ->orWhere('by_id', $user->id)  // Manager
+                    ->orWhereHas('project', function ($q) use ($user) {
+                        $q->where('client_id', $user->id);  // Client
+                    });
                 })
                 ->latest();
         }
@@ -83,10 +86,11 @@ class TasksController extends Controller
         if ($user->role === 'admin') {
             $managerOf = ProjectsModel::select('id', 'title')->get();
         } else {
-            // Regular users see only the projects they manage
-            $managerOf = $user->managedProjects()
-                ->select('id', 'title')
-                ->get();
+            // Regular users see only the projects they manage or are clients of
+            $managerOf = ProjectsModel::where(function ($q) use ($user) {
+                $q->where('manager_id', $user->id)  // Manager
+                ->orWhere('client_id', $user->id);  // Client
+            })->select('id', 'title')->get();
         }
         
         $mappedTasks = $tasks->getCollection()->map(function ($task) {
@@ -127,7 +131,7 @@ class TasksController extends Controller
         $roles = TasksModel::select('role_title')
             ->distinct()
             ->pluck('role_title');
-            
+
         return Inertia::render('Tasks', [
             'tasks' => $tasks,
             'roles' => $roles,
@@ -161,7 +165,10 @@ class TasksController extends Controller
         $isManager = $user->managedProjects()
             ->where('id', $validated['project_id'])
             ->exists();
-        if (!$isManager && $user->role !== 'admin') {
+        $isClient = $user->clientProjects()
+            ->where('id', $validated['project_id'])
+            ->exists();
+        if (!$isManager && !$isClient && $user->role !== 'admin') {
             return back()->withErrors([
                 'project_id' => 'You are not authorized to assign tasks for this project.'
             ]);
@@ -189,14 +196,16 @@ class TasksController extends Controller
             ->exists();
 
         $isAssignee = $task->to_id === $user->id;
+        $isClient = $user->clientProjects()
+            ->where('id', $task->pr_id)
+            ->exists();
 
         // if user is neither admin, manager, nor assignee → reject
-        if (!$isManager && !$isAssignee && $user->role !== 'admin') {
+        if (!$isManager && !$isAssignee && !$isClient && $user->role !== 'admin') {
             return redirect('/tasks')->with('error', 'You cannot update this task!');
         }
 
         if ($isAssignee && $user->role !== 'admin' && !$isManager) {
-            // Assignee → only update status
             $validated = $request->validate([
                 'status' => 'required|string|in:pending,in_progress,completed,testing,review,cancelled',
             ]);
@@ -223,7 +232,7 @@ class TasksController extends Controller
             $validated['role_title'] = Str::slug($validated['role_title']);
         }
 
-        $task->update(array_filter($validated, fn($val) => $val !== null));
+    $task->update(array_filter($validated, fn($val) => $val !== null));
 
         return redirect('/tasks')->with('success', 'Task updated successfully!');
     }

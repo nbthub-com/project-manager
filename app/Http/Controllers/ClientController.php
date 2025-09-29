@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use App\Models\User;
+use App\Models\TasksModel;
 
 class ClientController extends Controller
 {
@@ -30,52 +31,59 @@ class ClientController extends Controller
             'projectStats' => $projectStats,
         ]);
     }
-    public function viewTasks()
+    
+    public function viewProjects(Request $request)
     {
         $user = auth()->user();
-
-        $tasks = $user->clientTasks()
-            ->with(['project', 'manager', 'notes.member'])
-            ->paginate(10)
-            ->through(function ($task) {
-                return [
-                    'id'          => $task->id,
-                    'title'       => $task->title,
-                    'status'      => $task->status,
-                    'priority'    => $task->priority,
-                    'deadline'    => $task->deadline,
-                    'project'     => $task->project?->title ?? '—',
-                    'manager'     => $task->manager?->name ?? '—',
-                    'description' => $task->description,
-                    'notes'       => $task->notes
-                ];
+        $perPage = $request->input('per_page', 10);
+        
+        // Start with base query
+        $projectsQuery = $user->clientProjects()
+            ->with(['manager', 'notes']);
+            
+        // Apply search if provided
+        if ($request->filled('search')) {
+            $search = $request->input('search');
+            $projectsQuery->where(function ($q) use ($search) {
+                $q->where('title', 'like', "%{$search}%")
+                ->orWhere('description', 'like', "%{$search}%")
+                ->orWhereHas('manager', function ($q) use ($search) {
+                    $q->where('name', 'like', "%{$search}%");
+                });
             });
-
-        return Inertia::render('client/Tasks', [
-            'tasks' => $tasks,
-        ]);
-    }
-    public function viewProjects()
-    {
-        $user = auth()->user();
-
-        $projects = $user->clientProjects()
-            ->with(['manager', 'notes'])
-            ->paginate(10)
-            ->through(function ($project) {
-                return [
-                    'id'          => $project->id,
-                    'title'       => $project->title,
-                    'status'      => $project->status,
-                    'manager'     => $project->manager?->name ?? '—',
-                    'description' => $project->description,
-                    'task_count'  => $project->tasks->count(),
-                    'notes'       => $project->notes
-                ];
+        }
+        
+        // Apply status filter if provided
+        if ($request->filled('filter_status')) {
+            $projectsQuery->where('status', $request->input('filter_status'));
+        }
+        
+        // Apply manager filter if provided
+        if ($request->filled('filter_manager')) {
+            $projectsQuery->whereHas('manager', function ($q) use ($request) {
+                $q->where('name', 'like', "%{$request->input('filter_manager')}%");
             });
+        }
+
+        $projects = $projectsQuery->paginate($perPage);
+        
+        // Ensure pagination values are not null
+        $projectsData = $projects->toArray();
+        if (!isset($projectsData['from'])) {
+            $projectsData['from'] = 0;
+        }
+        if (!isset($projectsData['to'])) {
+            $projectsData['to'] = 0;
+        }
 
         return Inertia::render('client/Project', [
-            'projects' => $projects,
+            'projects' => $projectsData,
+            'filters' => $request->only([
+                'search', 
+                'per_page',
+                'filter_status',
+                'filter_manager'
+            ]),
         ]);
     }
 }

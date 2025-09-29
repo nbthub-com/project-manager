@@ -595,6 +595,7 @@ async function deleteNote(id) {
                   </span>
                 </h3>
                 <button
+                  v-if="role !== 'client'"
                   class="text-red-200 hover:text-red-400 cursor-pointer"
                   @click="deleteTask(task.id)"
                 >
