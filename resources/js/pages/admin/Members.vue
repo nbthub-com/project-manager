@@ -33,6 +33,7 @@ const filterForm = useForm({
   filter_name: s_query.value,
   filter_role: filterRole.value,
   per_page: perPage.value,
+  page: 1,
 });
 
 // Watch for search changes

@@ -18,8 +18,9 @@ class TasksController extends Controller
         
         // Fetch tasks depending on role
         if ($user->role === 'admin') {
-            $tasksQuery = TasksModel::with(['manager', 'assignee', 'project', 'notes.member'])
-                ->latest();
+           $tasksQuery = TasksModel::with(['manager', 'assignee', 'project', 'notes.member'])
+            ->orderBy('title', 'asc');
+
         } else {
             $tasksQuery = TasksModel::with(['manager', 'assignee', 'project', 'notes.member'])
                 ->where(function ($q) use ($user) {
@@ -29,7 +30,7 @@ class TasksController extends Controller
                         $q->where('client_id', $user->id);  // Client
                     });
                 })
-                ->latest();
+                ->orderBy('title', 'asc');
         }
         
         // Apply search if provided

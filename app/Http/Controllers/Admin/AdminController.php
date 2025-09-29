@@ -42,7 +42,8 @@ class AdminController extends Controller
 
         // Start with base query
         $query = User::where('role', '!=', 'admin')
-            ->orderBy('id', 'desc');
+            ->orderByRaw("CASE WHEN role = 'client' THEN 0 ELSE 1 END") // clients first
+            ->orderBy('name', 'asc'); // alphabetical within each group
 
         // Apply ID filter if provided
         if ($filterId) {
@@ -182,7 +183,8 @@ class AdminController extends Controller
                 $q->whereRaw('LOWER(name) LIKE ?', ["%{$query}%"])
                 ->orWhereRaw('LOWER(email) LIKE ?', ["%{$query}%"]);
             })
-            ->orderBy('id', 'desc')
+            ->orderByRaw("CASE WHEN role = 'client' THEN 0 ELSE 1 END")
+            ->orderBy('name', 'asc')
             ->get(['id', 'name', 'email', 'role']);
 
         // Map users to include stats
