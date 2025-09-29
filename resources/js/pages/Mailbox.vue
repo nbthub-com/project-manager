@@ -26,7 +26,7 @@ const filterTo = ref(props.filters?.filter_to || '');
 const filterType = ref(props.filters?.filter_type || '');
 const filterRead = ref(props.filters?.filter_read !== undefined ? props.filters?.filter_read : '');
 const filterScope = ref(props.filters?.filter_scope || '');
-const perPage = ref(props.filters?.per_page || 10);
+const perPage = ref(props.filters?.per_page || 20);
 const isFilterOpen = ref(false);
 
 // Get current page numbers from props

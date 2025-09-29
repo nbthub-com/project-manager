@@ -32,7 +32,7 @@ const props = defineProps({
 const filterId = ref(props.filters?.filter_id || '');
 const filterManager = ref(props.filters?.filter_manager || '');
 const filterStatus = ref(props.filters?.filter_status || '');
-const perPage = ref(props.filters?.per_page || 10);
+const perPage = ref(props.filters?.per_page || 20);
 
 // Filtering form
 const filterForm = useForm({

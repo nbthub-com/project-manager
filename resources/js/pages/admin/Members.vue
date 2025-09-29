@@ -25,7 +25,7 @@ const breadcrumbs = [{ title: "Members", href: "/admin/members" }];
 // 🔑 local state
 const s_query = ref(props.filters?.filter_name || "");
 const filterRole = ref(props.filters?.filter_role || "");
-const perPage = ref(props.filters?.per_page || 10);
+const perPage = ref(props.filters?.per_page || 20);
 const isFilterOpen = ref(false);
 
 // Form for search and pagination

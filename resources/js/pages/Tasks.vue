@@ -37,7 +37,7 @@ const user = usePage().props.auth.user;
 const role = user.role;
 
 const s_query = ref(props.filters?.search || "");
-const perPage = ref(props.filters?.per_page || 10);
+const perPage = ref(props.filters?.per_page || 20);
 const currentPage = ref(props.tasks?.current_page || 1);
 const lastPage = ref(props.tasks?.last_page || 1);
 

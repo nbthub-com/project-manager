@@ -30,7 +30,7 @@ const filterId = ref(props.filters?.filter_id || '');
 const filterManager = ref(props.filters?.filter_manager || '');
 const filterStatus = ref(props.filters?.filter_status || '');
 const filterStarred = ref(props.filters?.filter_starred !== undefined ? props.filters?.filter_starred : '');
-const perPage = ref(props.filters?.per_page || 10);
+const perPage = ref(props.filters?.per_page || 20);
 const isFilterOpen = ref(false);
 
 // Form for search and pagination
