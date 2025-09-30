@@ -185,7 +185,7 @@ class TasksController extends Controller
             'priority'    => $validated['priority'],
             'deadline'    => $validated['deadline'],
         ]);
-        return redirect('/tasks')->with('success', 'Task created successfully.');
+        return redirect()->back()->with('success', 'Task created successfully.');
     }
     public function update(Request $request, $id)
     {
@@ -203,7 +203,7 @@ class TasksController extends Controller
 
         // if user is neither admin, manager, nor assignee → reject
         if (!$isManager && !$isAssignee && !$isClient && $user->role !== 'admin') {
-            return redirect('/tasks')->with('error', 'You cannot update this task!');
+            return redirect()->back()->with('error', 'You cannot update this task!');
         }
 
         if ($isAssignee && $user->role !== 'admin' && !$isManager) {
@@ -215,7 +215,7 @@ class TasksController extends Controller
                 'status' => $validated['status'],
             ]);
 
-            return redirect('/tasks')->with('success', 'As assignee, only status was updated!');
+            return redirect()->back()->with('success', 'As assignee, only status was updated!');
         }
 
         $validated = $request->validate([
@@ -235,7 +235,7 @@ class TasksController extends Controller
 
     $task->update(array_filter($validated, fn($val) => $val !== null));
 
-        return redirect('/tasks')->with('success', 'Task updated successfully!');
+        return redirect()->back()->with('success', 'Task updated successfully!');
     }
     public function delete($id)
     {
@@ -245,9 +245,9 @@ class TasksController extends Controller
             ->where('id', $task->pr_id)
             ->exists();
         if (! $isManager && $user->role !== 'admin') {
-            return redirect('/tasks')->with('error', 'You cannot delete this task!');
+            return redirect()->back()->with('error', 'You cannot delete this task!');
         }
         $task->delete();
-        return redirect('/tasks')->with('success', 'Task deleted successfully!');
+        return redirect()->back()->with('success', 'Task deleted successfully!');
     }
 }

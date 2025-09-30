@@ -693,7 +693,7 @@ const role = user.role;
                 <div>
                   <p class="font-medium text-gray-300">Status</p>
                   <span
-                    class="px-2 py-1 rounded-full text-xs font-semibold"
+                    class="px-2 -1 rounded-full text-xs font-semibold"
                     :class="{
                       'bg-yellow-100 text-yellow-800': viewProject.status === 'pending',
                       'bg-blue-100 text-blue-800': viewProject.status === 'in_progress',
