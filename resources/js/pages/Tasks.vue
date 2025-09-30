@@ -21,7 +21,7 @@ import {
 } from "lucide-vue-next";
 import Picker from "@/components/ui/date/Picker.vue";
 import Viewer from "@/components/ui/md/viewer.vue";
-import { formatDate } from "@/lib/utils.ts";
+import { formatDate, toTitleCase } from "@/lib/utils.ts";
 import axios from "axios";
 import { Delete, Plus } from "lucide-vue-next";
 
@@ -588,7 +588,7 @@ async function deleteNote(id) {
                   <span
                     @click="openViewDialog(task)"
                     class="cursor-pointer hover:underline"
-                    >{{ task.title }}</span
+                    >{{ toTitleCase(task.title) }}</span
                   >
                   <span class="font-extralight text-[15px] h-full gap-2 flex flex-row">
                     ({{ task.id }})

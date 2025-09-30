@@ -256,7 +256,7 @@ function openView(user) {
             >
               <h3 class="text-lg font-bold flex flex-row">
                 <span class="cursor-pointer hover:underline" @click="openView(user)">
-                  {{ user.name }}
+                  {{ toTitleCase(user.name) }}
                 </span>
                 <span class="font-extralight text-[12px] ml-1 h-full gap-2 flex flex-row">
                   ({{ user.id }})

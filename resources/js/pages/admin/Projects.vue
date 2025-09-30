@@ -11,6 +11,7 @@ import Select from '@/components/ui/select/Select.vue';
 import Pagination from '@/components/ui/pagination/Pagination.vue';
 import Viewer from '@/components/ui/md/viewer.vue';
 import axios from 'axios';
+import { toTitleCase } from '@/lib/utils';
 
 const breadcrumbs = [
   { title: 'Projects', href: '/admin/projects' },
@@ -421,13 +422,11 @@ const role = user.role;
                 class="flex justify-between items-center border-b border-white/20 pb-2 mb-3"
             >
                 <h3 class="text-lg font-bold flex flex-row">
-                @click="openViewDialog(project)"
-              >
-                <span>
-                  {{ project.title }}
+                <span @click="openViewDialog(project)" class="hover:underline hover:cursor-pointer">
+                  {{ toTitleCase(project.title) }}
                 </span>
                 <span class="font-extralight text-[15px] h-full gap-2 flex flex-row">
-                  {{ project.id }}
+                  ({{ project.id }})
                 </span>
               </h3>
               <button

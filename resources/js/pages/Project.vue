@@ -11,6 +11,7 @@ import Select from '@/components/ui/select/Select.vue';
 import Pagination from '@/components/ui/pagination/Pagination.vue';
 import Viewer from '@/components/ui/md/viewer.vue';
 import axios from 'axios';
+import { toTitleCase } from '@/lib/utils';
 
 const breadcrumbs = [{ title: 'Projects', href: '/projects' }];
 const isFilterOpen = ref(false);
@@ -281,7 +282,7 @@ const role = user.role;
                 class="text-lg font-bold cursor-pointer hover:underline"
                 @click="openViewDialog(project)"
               >
-                {{ project.title }}
+                {{ toTitleCase(project.title) }}
               </h3>
             </div>
             <!-- Body: Manager + Description -->

@@ -82,7 +82,7 @@ const role = user.role;
                 <span
                   @click="openProject(project)"
                   class="cursor-pointer hover:underline"
-                  >{{ project.title }}</span
+                  >{{ toTitleCase(project.title) }}</span
                 >
                 <span class="font-extralight text-[15px] h-full gap-2 flex flex-row">
                   ({{ project.id }})
