@@ -682,16 +682,16 @@ const role = user.role;
             <!-- Title & Manager -->
             <div class="grid grid-cols-3 gap-1">
               <div>
-                <p class="font-medium text-gray-600 dark:text-gray-300">Manager</p>
+                <p class="font-medium text-gray-300">Manager</p>
                 <p class="text-base">{{ viewProject.manager.name }}</p>
               </div>
               <div>
-                <p class="font-medium text-gray-600 dark:text-gray-300">Client</p>
+                <p class="font-medium text-gray-300">Client</p>
                 <p class="text-base">{{ viewProject.client.name }}</p>
               </div>
               <div class="flex flex-row items-center gap-4">
                 <div>
-                  <p class="font-medium text-gray-600 dark:text-gray-300">Status</p>
+                  <p class="font-medium text-gray-300">Status</p>
                   <span
                     class="px-2 py-1 rounded-full text-xs font-semibold"
                     :class="{

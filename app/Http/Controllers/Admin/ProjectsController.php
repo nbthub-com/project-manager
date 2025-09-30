@@ -70,6 +70,24 @@ class ProjectsController extends Controller
             ]),
         ]);
     }
+    public function viewProject($id) {
+        $project = ProjectsModel::with([
+            'manager:id,name,email,role',
+            'client:id,name,email,role',
+            'notes.member:id,name,email,role',
+            'tasks' => function ($q) {
+                $q->with([
+                    'manager:id,name,email,role',
+                    'assignee:id,name,email,role',
+                    'notes.member:id,name,email,role'
+                ]);
+            }
+        ])->findOrFail($id);
+
+        return Inertia::render('ProjectShow', [
+            'project' => $project
+        ]);
+    }
 
     public function create(Request $request)
     {

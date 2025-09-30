@@ -7,7 +7,7 @@ import Pagination from "@/components/ui/pagination/Pagination.vue";
 import Dialog from "@/components/ui/simpledialog/Dialog.vue";
 import Viewer from "@/components/ui/md/viewer.vue";
 import axios from "axios";
-import { usePage } from "@inertiajs/vue3";
+import { router, usePage } from "@inertiajs/vue3";
 import Button from "@/components/ui/button/Button.vue";
 
 const page = usePage();
@@ -16,8 +16,7 @@ const viewProject = ref();
 const isViewDialogOpen = ref(false);
 
 function openProject(project) {
-  viewProject.value = project;
-  isViewDialogOpen.value = true;
+  router.visit(`/client/projects/${project.id}`)
 }
 async function addNote() {
   const content = note.value.trim();

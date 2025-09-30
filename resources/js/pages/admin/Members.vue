@@ -140,6 +140,7 @@ function openView(user) {
   selectedUser.value = user;
   isViewDialogOpen.value = true;
 }
+const openTask = ref();
 </script>
 
 <template>
@@ -249,8 +250,7 @@ function openView(user) {
           </div>
 
           <!-- Header -->
-          <div
-          >
+          <div>
             <div
               class="flex justify-between items-center border-b border-white/20 pb-2 mb-3"
             >
@@ -441,67 +441,62 @@ function openView(user) {
 
         <!-- Body -->
         <template #body>
-          <div v-if="selectedUser" class="flex flex-col gap-6 text-sm">
-            <!-- If NOT client → normal stats -->
-            <div v-if="!selectedUser.is_client" class="grid grid-cols-2 gap-4">
-              <div class="p-4 rounded-xl flex flex-col items-center">
-                <span class="text-4xl font-bold text-green-500">
-                  {{ selectedUser.tasks_assigned }}
-                </span>
-                <span class="text-xl text-gray-500">Tasks Assigned</span>
-              </div>
-              <div class="p-4 rounded-xl flex flex-col items-center">
-                <span class="text-4xl font-bold text-orange-500">
-                  {{ selectedUser.tasks_done }}
-                </span>
-                <span class="text-xl text-gray-500">Tasks Done</span>
-              </div>
-              <div class="p-4 rounded-xl flex flex-col items-center">
-                <span class="text-4xl font-bold text-yellow-500">
+          <div v-if="selectedUser" class="flex flex-col gap-4 p-2">
+            <div class="grid grid-cols-3 gap-1">
+              <div v-if="!selectedUser.is_client && selectedUser.projects_assigned">
+                <p class="font-medium text-gray-300">
+                  Projects Assigned
+                </p>
+                <p class="text-base font-semibold">
                   {{ selectedUser.projects_assigned }}
-                </span>
-                <span class="text-xl text-gray-500">Projects Assigned</span>
+                </p>
               </div>
-              <div class="p-4 rounded-xl flex flex-col items-center">
-                <span class="text-4xl font-bold text-red-300">
+              <div v-if="!selectedUser.is_client && selectedUser.projects_assigned">
+                <p class="font-mediumtext-gray-300">Projects Done</p>
+                <p class="text-base font-semibold">
                   {{ selectedUser.projects_done }}
-                </span>
-                <span class="text-xl text-gray-500">Projects Done</span>
+                </p>
               </div>
-            </div>
-
-            <div v-else class="grid grid-cols-2 gap-4">
-              <div class="p-4 rounded-xl flex flex-col items-center">
-                <span class="text-4xl font-bold text-purple-500">
+              <div v-if="selectedUser.is_client">
+                <p class="font-mediumtext-gray-300">Owned Tasks</p>
+                <p class="text-base font-semibold">
                   {{ selectedUser.client_tasks }}
-                </span>
-                <span class="text-xl text-gray-500">Owned Tasks</span>
+                </p>
               </div>
-              <div class="p-4 rounded-xl flex flex-col items-center">
-                <span class="text-4xl font-bold text-pink-500">
+              <div v-if="selectedUser.is_client">
+                <p class="font-mediumtext-gray-300">Owned Projects</p>
+                <p class="text-base font-semibold">
                   {{ selectedUser.client_projects }}
-                </span>
-                <span class="text-xl text-gray-500">Owned Projects</span>
+                </p>
               </div>
             </div>
-
-            <div v-if="!selectedUser.is_client">
-              <p class="font-medium text-gray-600 mb-2">Roles in Projects</p>
-              <div class="flex flex-wrap gap-2">
-                <span
-                  v-for="(role, idx) in selectedUser.roles"
-                  :key="idx"
-                  class="px-3 py-1 rounded-full text-md font-semibold bg-blue-500 border border-gray-300 text-white"
+            <p class="font-medium text-gray-300 flex flex-row">Roles :
+              <span
+                v-for="(role, idx) in selectedUser.roles"
+                :key="idx"
+                class="px-2 py-0.5 rounded-full justify-center text-xs font-medium bg-blue-500 text-white"
+              >
+                 {{ toTitleCase(role.replace("-", " ")) }}
+              </span>
+              <span
+                v-if="!selectedUser.roles || selectedUser.roles.length === 0"
+                class="text-xs text-gray-500 italic"
+              >
+                No roles
+              </span>
+            </p>
+            <!-- Task List -->
+            <div v-if="selectedUser.tasks && selectedUser.tasks.length">
+              <p class="font-medium text-gray-300 mb-1">Tasks</p>
+              <ul class="space-y-1">
+                <li
+                  v-for="task in selectedUser.tasks"
+                  :key="task.id"
+                  class="text-sm text-white border-b text-md pb-1"
                 >
-                  {{ toTitleCase(role.replace('-',' ')) }}
-                </span>
-                <span
-                  v-if="!selectedUser.roles || selectedUser.roles.length === 0"
-                  class="text-md text-gray-500 italic"
-                >
-                  No roles assigned
-                </span>
-              </div>
+                  {{ task.to_id === selectedUser.id ? 'for' : 'by' }}: {{ task.title }} ({{ task.description }})
+                </li>
+              </ul>
             </div>
           </div>
         </template>

@@ -76,6 +76,10 @@ class AdminController extends Controller
             $tasksDone = TasksModel::where('to_id', $user->id)
                 ->where('status', 'completed')
                 ->count();
+            
+            $tasks = TasksModel::where('to_id', $user->id)
+                    ->orWhere('by_id', $user->id)
+                    ->get();
                 
             // Roles in projects (grab distinct role_title from tasks table)
             $userRoles = TasksModel::where('to_id', $user->id)
@@ -91,6 +95,7 @@ class AdminController extends Controller
                 'projects_done' => $projectsDone,
                 'tasks_assigned' => $tasksAssigned,
                 'tasks_done' => $tasksDone,
+                'tasks'  => $tasks,
                 'roles' => $userRoles,
                 'is_client' => $user->role === 'client',
                 'client_tasks' => $user->clientTasks()->count(),
