@@ -418,13 +418,17 @@ const role = user.role;
           >
             <!-- Header: Title + Delete -->
             <div
-              class="flex justify-between items-center border-b border-white/20 pb-2 mb-3"
+                class="flex justify-between items-center border-b border-white/20 pb-2 mb-3"
             >
-              <h3
-                class="text-lg font-bold cursor-pointer hover:underline"
+                <h3 class="text-lg font-bold flex flex-row">
                 @click="openViewDialog(project)"
               >
-                {{ project.title }}
+                <span>
+                  {{ project.title }}
+                </span>
+                <span class="font-extralight text-[15px] h-full gap-2 flex flex-row">
+                  {{ project.id }}
+                </span>
               </h3>
               <button
                 class="text-red-200 hover:text-red-400 cursor-pointer"
@@ -748,8 +752,13 @@ const role = user.role;
                   <div class="w-full justify-between flex flex-row h-fit gap-2">
                     <p class="text-xs text-gray-400">— {{ note.member.name }}</p>
                     <div v-if="role === 'admin'" class="flex flex-row w-fit h-fit gap-2">
-                      <Button size="xs" variant="secondary"
-                        class="hover:bg-primary/20 p-0.5" @click="deleteNote(note.id)"><Delete /></Button>
+                      <Button
+                        size="xs"
+                        variant="secondary"
+                        class="hover:bg-primary/20 p-0.5"
+                        @click="deleteNote(note.id)"
+                        ><Delete
+                      /></Button>
                     </div>
                   </div>
                 </div>

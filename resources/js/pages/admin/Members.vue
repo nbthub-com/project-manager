@@ -7,10 +7,11 @@ import Button from "@/components/ui/button/Button.vue";
 import InputError from "@/components/InputError.vue";
 import Input from "@/components/ui/input/Input.vue";
 import Dropdown from "@/components/ui/select/Select.vue";
-import { Search, Filter, X } from "lucide-vue-next";
+import { Search, Filter, X, Edit } from "lucide-vue-next";
 import { useInitials } from "@/composables/useInitials";
 import Label from "@/components/ui/label/Label.vue";
 import Pagination from "@/components/ui/pagination/Pagination.vue";
+import { toTitleCase } from "@/lib/utils";
 
 const { getInitials } = useInitials();
 
@@ -139,7 +140,6 @@ function openView(user) {
   selectedUser.value = user;
   isViewDialogOpen.value = true;
 }
-
 </script>
 
 <template>
@@ -250,16 +250,26 @@ function openView(user) {
 
           <!-- Header -->
           <div
-            class="flex justify-between items-center border-b border-white/20 pb-2 mb-3"
           >
-            <h3 class="text-lg font-bold truncate">{{ user.name }}</h3>
-            <button
-              class="text-red-200 hover:text-red-400 cursor-pointer text-sm"
-              @click="deleteUser(user.id)"
-              title="Delete user"
+            <div
+              class="flex justify-between items-center border-b border-white/20 pb-2 mb-3"
             >
-              ✕
-            </button>
+              <h3 class="text-lg font-bold flex flex-row">
+                <span class="cursor-pointer hover:underline" @click="openView(user)">
+                  {{ user.name }}
+                </span>
+                <span class="font-extralight text-[12px] ml-1 h-full gap-2 flex flex-row">
+                  ({{ user.id }})
+                </span>
+              </h3>
+              <button
+                class="text-red-200 hover:text-red-400 cursor-pointer text-sm"
+                @click="deleteUser(user.id)"
+                title="Delete user"
+              >
+                ✕
+              </button>
+            </div>
           </div>
 
           <!-- Info -->
@@ -267,17 +277,11 @@ function openView(user) {
             <p class="text-sm opacity-90 truncate">
               <b>Email:</b> <span class="font-medium">{{ user.email }}</span>
             </p>
-            <p class="text-xs opacity-75"><b>Name:</b> {{ user.id }}</p>
           </div>
 
           <!-- Footer -->
           <div class="mt-4 flex justify-end gap-1 border-t border-white/20 pt-2">
-            <button
-              class="px-2 py-1 text-xs rounded-md bg-white/20 hover:bg-white/30 transition"
-              @click="openView(user)"
-            >
-              View
-            </button>
+            <Edit class="w-5 h-5 text-white cursor-pointer hover:text-gray-200" />
           </div>
         </div>
       </div>
@@ -489,7 +493,7 @@ function openView(user) {
                   :key="idx"
                   class="px-3 py-1 rounded-full text-md font-semibold bg-blue-500 border border-gray-300 text-white"
                 >
-                  {{ role }}
+                  {{ toTitleCase(role.replace('-',' ')) }}
                 </span>
                 <span
                   v-if="!selectedUser.roles || selectedUser.roles.length === 0"
