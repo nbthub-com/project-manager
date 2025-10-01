@@ -71,6 +71,7 @@ function openTask(task) {
 const editTask = ref();
 const isEditOpen = ref(false);
 const isAddOpen = ref(false);
+const isDetailsDialogOpen = ref(false);
 
 function openEdit(task) {
   // Populate form with existing task data
@@ -154,12 +155,12 @@ async function addNote(context = "task") {
     const response = await axios.post("/notes", {
       content,
       context: context,
-      context_id: context === 'task' ? viewTask.value.id : props.project.id,
+      context_id: context === "task" ? viewTask.value.id : props.project.id,
       member_id: user.id,
     });
 
     // Add new note to the current task's notes
-    if (context === 'task') {
+    if (context === "task") {
       viewTask.value.notes.push(response.data.note);
     } else {
       props.project.notes.push(response.data.note);
@@ -193,93 +194,7 @@ const statusOptions = [
   <Head :title="toTitleCase(project.title) + ' - Project'" />
   <AppLayout :breadcrumbs="breadcrumbs">
     <div class="flex flex-col sm:flex-row w-full h-full">
-      <div class="w-full sm:w-[30%] h-full p-4 bg-primary/20">
-        <div class="w-full justify-between flex flex-row">
-          <p class="text-2xl font-extrabold mb-2">
-            {{ toTitleCase(project.title) }}
-          </p>
-          <Button
-            class="text-sm bg-secondary border-2 border-primary/20"
-            @click="isNotesDialogOpen = true"
-          >
-            <PenLine />
-          </Button>
-        </div>
-        <!-- Manager -->
-        <div
-          class="flex items-center flex-row gap-3 mb-2 border border-primary/40 bg-gray-800/30 rounded-xl p-3 shadow-sm"
-        >
-          <div class="flex flex-row gap-3">
-            <div
-              class="flex w-10 h-10 items-center justify-center rounded-full bg-primary text-white font-bold"
-            >
-              {{ getInitials(project.manager.name) }}
-            </div>
-            <div>
-              <p class="text-xs text-gray-400">Managed by</p>
-              <p class="text-base font-semibold text-gray-100">
-                {{ toTitleCase(project.manager.name) }}
-              </p>
-            </div>
-          </div>
-          <div class="flex flex-row gap-3">
-            <div
-              class="flex w-10 h-10 items-center justify-center rounded-full bg-primary text-white font-bold"
-            >
-              <Gauge />
-            </div>
-            <div>
-              <p class="text-xs text-gray-400">Status</p>
-              <span
-                class="inline-block text-md font-semibold"
-                :class="{
-                  'text-green-500': project.status === 'completed',
-                  'text-yellow-500': project.status === 'in_progress',
-                  'text-blue-500': project.status === 'pending',
-                  'text-purple-500': project.status === 'review',
-                  'text-orange-500': project.status === 'testing',
-                  'text-red-500': project.status === 'cancelled',
-                }"
-              >
-                {{ toTitleCase(project.status.replace("_", " ")) }}
-              </span>
-            </div>
-          </div>
-        </div>
-        <div
-          class="flex items-center flex-row gap-3 mb-2 border border-primary/40 bg-gray-800/30 rounded-xl p-3 shadow-sm"
-        >
-          <div class="flex flex-row gap-3">
-            <div
-              class="flex w-10 h-10 items-center justify-center rounded-full bg-primary text-white font-bold"
-            >
-              <List />
-            </div>
-            <div>
-              <p class="text-xs text-gray-400">Total Tasks</p>
-              <p class="text-base font-semibold text-gray-100">
-                {{ project.tasks.length }}
-              </p>
-            </div>
-            <div
-              class="flex w-10 h-10 items-center justify-center rounded-full bg-primary text-white font-bold"
-            >
-              <ListCheckIcon />
-            </div>
-            <div>
-              <p class="text-xs text-gray-400">Completed</p>
-              <p class="text-base font-semibold text-gray-100">
-                {{ project.tasks.filter((task) => task.status === "completed").length }}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div class="overflow-auto max-h-100 border-b-2">
-          <Viewer :source="project.description" />
-        </div>
-      </div>
-      <div class="w-full sm:w-[70%] h-full p-1">
+      <div class="w-full h-full p-1">
         <div class="border-b-2 flex flex-row justify-between p-1 items-center gap-2">
           <div class="w-full sm:w-sm flex flex-row">
             <Input
@@ -291,9 +206,32 @@ const statusOptions = [
               <Search />
             </Button>
           </div>
-          <Button @click="openAddDialog"> New <Plus /> </Button>
+          <div class="w-fit sm:gap-2 sm:px-1 items-center flex flex-row">
+            <Button
+              variant="outline"
+              class="rounded-none rounded-tl-lg rounded-bl-lg sm:rounded-lg"
+              @click="openAddDialog"
+            >
+              <p class="hidden sm:flex">New</p>
+              <Plus />
+            </Button>
+            <Button
+              class="rounded-none sm:rounded-lg"
+              @click="isDetailsDialogOpen = true"
+            >
+              <List />
+              <p class="hidden sm:flex">Details</p>
+            </Button>
+            <Button
+              class="rounded-none rounded-tr-lg rounded-br-lg sm:rounded-lg"
+              @click="isNotesDialogOpen = true"
+            >
+              <PenLine />
+              <p class="hidden sm:flex">Notes</p>
+            </Button>
+          </div>
         </div>
-        <div class="w-full px-3 gap-2 mt-4 grid grid-cols-1 sm:grid-cols-3">
+        <div class="w-full px-3 gap-2 mt-4 grid grid-cols-1 sm:grid-cols-4">
           <div
             v-for="task in filteredTasks"
             :key="task.id"
@@ -304,7 +242,7 @@ const statusOptions = [
                 : 'bg-gradient-to-br from-[#5a248a] to-secondary'
             "
           >
-            <span class="font-bold">{{ toTitleCase(task.title) }}</span>
+            <span class="font-bold truncate">{{ toTitleCase(task.title) }}</span>
             <div class="flex flex-row gap-1">
               <button
                 @click="openTask(task)"
@@ -323,7 +261,37 @@ const statusOptions = [
         </div>
       </div>
     </div>
-
+    <!-- Details Dialog -->
+    <Dialog v-model="isDetailsDialogOpen">
+      <template #header>
+        <div class="flex items-center justify-between w-full">
+          <div class="flex items-center gap-2">
+            <h2 class="text-xl font-bold flex items-center gap-2 capitalize">
+              {{ project.title }}
+            </h2>
+            <span
+              class="px-2 py-1 rounded-full text-xs font-semibold capitalize"
+              :class="{
+                'bg-yellow-100 text-yellow-800': project.status === 'pending',
+                'bg-blue-100 text-blue-800': project.status === 'in_progress',
+                'bg-purple-100 text-purple-800': project.status === 'testing',
+                'bg-indigo-100 text-indigo-800': project.status === 'review',
+                'bg-green-100 text-green-800': project.status === 'completed',
+                'bg-red-100 text-red-800': project.status === 'cancelled',
+              }"
+            >
+              {{ project.status.replace("_", " ") }}
+            </span>
+          </div>
+        </div>
+      </template>
+      <template #body>
+        <div class="w-full h-full">
+          <Viewer :source="project.description" />
+          <div class="h-4" />
+        </div>
+      </template>
+    </Dialog>
     <!-- View Task Dialog -->
     <Dialog v-model="isViewDialogOpen" v-if="viewTask">
       <template #header>
@@ -589,27 +557,21 @@ const statusOptions = [
             </div>
           </div>
         </div>
-              <div v-else class="text-center text-sm italic text-gray-500 py-3">
-                No notes yet...
-              </div>
+        <div v-else class="text-center text-sm italic text-gray-500 py-3">
+          No notes yet...
+        </div>
       </template>
-      <template #footer> 
+      <template #footer>
         <div class="flex gap-2 items-end w-full h-full">
           <textarea
             v-model="note"
             placeholder="Your note here..."
-            class="flex-1 text-sm h-full max-h-80 p-1.5 
-                    rounded-md bg-white/10 text-white
-                  placeholder-gray-400 focus:outline-none
-                    focus:ring-1 focus:ring-ring
-                    min-h-[33px]"
+            class="flex-1 text-sm h-full max-h-80 p-1.5 rounded-md bg-white/10 text-white placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-ring min-h-[33px]"
           ></textarea>
           <Button
             size="xs"
-            class="px-2 py-2 flex items-center gap-1
-                    rounded-md shadow-sm transition
-                  text-white text-xs h-8"
-            @click="addNote(context='proj')"
+            class="px-2 py-2 flex items-center gap-1 rounded-md shadow-sm transition text-white text-xs h-8"
+            @click="addNote((context = 'proj'))"
           >
             <Plus class="w-3 h-3" /> Add
           </Button>
