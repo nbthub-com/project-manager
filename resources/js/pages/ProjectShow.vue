@@ -20,6 +20,7 @@ import {
   List,
   ListCheckIcon,
   Loader2,
+  PenLine,
   Plus,
   Search,
   TimerIcon,
@@ -28,6 +29,7 @@ import {
 import { ref, computed } from "vue";
 import { defineProps } from "vue";
 import { usePage } from "@inertiajs/vue3";
+import axios from "axios";
 
 const props = defineProps(["project"]);
 const user = usePage().props.auth.user;
@@ -38,12 +40,12 @@ const breadcrumbs = [
   },
 ];
 function formatDate(date) {
-  if (!date) return '';
+  if (!date) return "";
   const d = new Date(date);
-  return d.toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric'
+  return d.toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
   });
 }
 const searchQuery = ref("");
@@ -77,7 +79,7 @@ function openEdit(task) {
   taskForm.priority = task.priority;
   taskForm.status = task.status;
   taskForm.deadline = task.deadline;
-  
+
   editTask.value = task;
   isViewDialogOpen.value = false;
   isEditOpen.value = true;
@@ -85,14 +87,14 @@ function openEdit(task) {
 
 function openAddDialog() {
   // Reset form
-  taskForm.title = '';
-  taskForm.description = '';
-  taskForm.priority = 'medium';
-  taskForm.status = 'pending';
-  taskForm.deadline = '';
+  taskForm.title = "";
+  taskForm.description = "";
+  taskForm.priority = "medium";
+  taskForm.status = "pending";
+  taskForm.deadline = "";
   isAddOpen.value = true;
 }
-
+const isNotesDialogOpen = ref(false);
 function closeDialog() {
   isViewDialogOpen.value = false;
   viewTask.value = null;
@@ -113,15 +115,15 @@ function closeAddDialog() {
 
 // Task form with auto-filled fields
 const taskForm = useForm({
-  title: '',
-  description: '',
-  priority: 'medium',
-  status: 'pending',
-  deadline: '',
+  title: "",
+  description: "",
+  priority: "medium",
+  status: "pending",
+  deadline: "",
   project_id: props.project.id,
   by_id: user.id,
   to_id: props.project.manager_id,
-  role_title: 'not-assigned'
+  role_title: "not-assigned",
 });
 
 function submitTaskForm() {
@@ -135,7 +137,7 @@ function submitTaskForm() {
     });
   } else {
     // Create new task
-    taskForm.post('/tasks/create', {
+    taskForm.post("/tasks/create", {
       onSuccess: () => {
         closeAddDialog();
         taskForm.reset();
@@ -144,43 +146,46 @@ function submitTaskForm() {
   }
 }
 
-function addNote() {
-  if (!note.value.trim()) return;
+async function addNote(context = "task") {
+  const content = note.value.trim();
+  if (!content) return; // prevent empty notes
 
-  // In a real app, you would send this to your backend
-  // For now, we'll just add it to the local task object
-  if (viewTask.value) {
-    if (!viewTask.value.notes) {
-      viewTask.value.notes = [];
-    }
-
-    viewTask.value.notes.push({
-      id: Date.now(), // Temporary ID
-      content: note.value,
-      member: {
-        name: "Current User", // In a real app, this would be the actual user
-      },
-      created_at: new Date().toISOString(),
+  try {
+    const response = await axios.post("/notes", {
+      content,
+      context: context,
+      context_id: context === 'task' ? viewTask.value.id : props.project.id,
+      member_id: user.id,
     });
 
-    note.value = "";
+    // Add new note to the current task's notes
+    if (context === 'task') {
+      viewTask.value.notes.push(response.data.note);
+    } else {
+      props.project.notes.push(response.data.note);
+    }
+
+    note.value = ""; // reset textarea after submit
+  } catch (error) {
+    console.error("Error adding note:", error);
+    alert("Failed to add note. Please try again.");
   }
 }
 
 // Form options
 const priorityOptions = [
-  { value: 'low', label: 'Low' },
-  { value: 'medium', label: 'Medium' },
-  { value: 'high', label: 'High' },
+  { value: "low", label: "Low" },
+  { value: "medium", label: "Medium" },
+  { value: "high", label: "High" },
 ];
 
 const statusOptions = [
-  { value: 'pending', label: 'Pending' },
-  { value: 'in_progress', label: 'In Progress' },
-  { value: 'testing', label: 'Testing' },
-  { value: 'review', label: 'Review' },
-  { value: 'completed', label: 'Completed' },
-  { value: 'cancelled', label: 'Cancelled' },
+  { value: "pending", label: "Pending" },
+  { value: "in_progress", label: "In Progress" },
+  { value: "testing", label: "Testing" },
+  { value: "review", label: "Review" },
+  { value: "completed", label: "Completed" },
+  { value: "cancelled", label: "Cancelled" },
 ];
 </script>
 
@@ -189,9 +194,17 @@ const statusOptions = [
   <AppLayout :breadcrumbs="breadcrumbs">
     <div class="flex flex-col sm:flex-row w-full h-full">
       <div class="w-full sm:w-[30%] h-full p-4 bg-primary/20">
-        <p class="text-2xl font-extrabold mb-2">
-          {{ toTitleCase(project.title) }}
-        </p>
+        <div class="w-full justify-between flex flex-row">
+          <p class="text-2xl font-extrabold mb-2">
+            {{ toTitleCase(project.title) }}
+          </p>
+          <Button
+            class="text-sm bg-secondary border-2 border-primary/20"
+            @click="isNotesDialogOpen = true"
+          >
+            <PenLine />
+          </Button>
+        </div>
         <!-- Manager -->
         <div
           class="flex items-center flex-row gap-3 mb-2 border border-primary/40 bg-gray-800/30 rounded-xl p-3 shadow-sm"
@@ -256,13 +269,13 @@ const statusOptions = [
             <div>
               <p class="text-xs text-gray-400">Completed</p>
               <p class="text-base font-semibold text-gray-100">
-                {{ project.tasks.length }}
+                {{ project.tasks.filter((task) => task.status === "completed").length }}
               </p>
             </div>
           </div>
         </div>
 
-        <div class="overflow-auto max-h-[420px] border-b-2">
+        <div class="overflow-auto max-h-100 border-b-2">
           <Viewer :source="project.description" />
         </div>
       </div>
@@ -480,9 +493,7 @@ const statusOptions = [
           <!-- Deadline -->
           <div>
             <label class="block text-sm font-medium mb-1">Deadline</label>
-            <Picker
-              v-model="taskForm.deadline"
-            />
+            <Picker v-model="taskForm.deadline" />
             <div v-if="taskForm.errors.deadline" class="text-red-500 text-xs mt-1">
               {{ taskForm.errors.deadline }}
             </div>
@@ -492,7 +503,7 @@ const statusOptions = [
 
       <template #footer>
         <Button @click="submitTaskForm" :disabled="taskForm.processing">
-          {{ taskForm.processing ? 'Saving...' : 'Update Task' }}
+          {{ taskForm.processing ? "Saving..." : "Update Task" }}
         </Button>
       </template>
     </Dialog>
@@ -546,9 +557,7 @@ const statusOptions = [
           <!-- Deadline -->
           <div>
             <label class="block text-sm font-medium mb-1">Deadline</label>
-            <Picker
-              v-model="taskForm.deadline"
-            />
+            <Picker v-model="taskForm.deadline" />
             <div v-if="taskForm.errors.deadline" class="text-red-500 text-xs mt-1">
               {{ taskForm.errors.deadline }}
             </div>
@@ -558,8 +567,53 @@ const statusOptions = [
 
       <template #footer>
         <Button @click="submitTaskForm" :disabled="taskForm.processing">
-          {{ taskForm.processing ? 'Creating...' : 'Create Task' }}
+          {{ taskForm.processing ? "Creating..." : "Create Task" }}
         </Button>
+      </template>
+    </Dialog>
+    <Dialog v-model="isNotesDialogOpen">
+      <template #header> Notes </template>
+      <template #body>
+        <div
+          v-if="project.notes?.length > 0"
+          class="flex flex-col gap-2 max-h-60 overflow-y-auto pr-1"
+        >
+          <div
+            v-for="note in project.notes"
+            :key="note.id"
+            class="p-2 rounded-lg bg-secondary border border-indigo-950 shadow-sm hover:shadow-md transition"
+          >
+            <p class="text-sm text-white leading-snug">{{ note.content }}</p>
+            <div class="w-full justify-between flex flex-row h-fit gap-2">
+              <p class="text-xs text-gray-400">— {{ note.member.name }}</p>
+            </div>
+          </div>
+        </div>
+              <div v-else class="text-center text-sm italic text-gray-500 py-3">
+                No notes yet...
+              </div>
+      </template>
+      <template #footer> 
+        <div class="flex gap-2 items-end w-full h-full">
+          <textarea
+            v-model="note"
+            placeholder="Your note here..."
+            class="flex-1 text-sm h-full max-h-80 p-1.5 
+                    rounded-md bg-white/10 text-white
+                  placeholder-gray-400 focus:outline-none
+                    focus:ring-1 focus:ring-ring
+                    min-h-[33px]"
+          ></textarea>
+          <Button
+            size="xs"
+            class="px-2 py-2 flex items-center gap-1
+                    rounded-md shadow-sm transition
+                  text-white text-xs h-8"
+            @click="addNote(context='proj')"
+          >
+            <Plus class="w-3 h-3" /> Add
+          </Button>
+        </div>
       </template>
     </Dialog>
   </AppLayout>

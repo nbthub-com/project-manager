@@ -11,7 +11,7 @@ use App\Models\ProjectsModel;
 
 class TasksController extends Controller
 {
-    public function index(Request $request)
+  public function index(Request $request)
     {
         $user = auth()->user();
         $perPage = $request->input('per_page', 10);
@@ -24,11 +24,18 @@ class TasksController extends Controller
         } else {
             $tasksQuery = TasksModel::with(['manager', 'assignee', 'project', 'notes.member'])
                 ->where(function ($q) use ($user) {
-                    $q->where('to_id', $user->id)  // Assignee
-                    ->orWhere('by_id', $user->id)  // Manager
-                    ->orWhereHas('project', function ($q) use ($user) {
-                        $q->where('client_id', $user->id);  // Client
-                    });
+                    // Tasks assigned to the user
+                    $q->where('to_id', $user->id)
+                      // Tasks assigned by the user
+                      ->orWhere('by_id', $user->id)
+                      // Tasks where user is the project manager
+                      ->orWhereHas('project', function ($q) use ($user) {
+                          $q->where('manager_id', $user->id);
+                      })
+                      // Tasks where user is the project client
+                      ->orWhereHas('project', function ($q) use ($user) {
+                          $q->where('client_id', $user->id);
+                      });
                 })
                 ->orderBy('title', 'asc');
         }
@@ -85,13 +92,13 @@ class TasksController extends Controller
         
         // Admin sees all projects
         if ($user->role === 'admin') {
-            $managerOf = ProjectsModel::select('id', 'title')->get();
+            $managerOf = ProjectsModel::select('id', 'title', 'manager_id')->get();
         } else {
             // Regular users see only the projects they manage or are clients of
             $managerOf = ProjectsModel::where(function ($q) use ($user) {
                 $q->where('manager_id', $user->id)  // Manager
                 ->orWhere('client_id', $user->id);  // Client
-            })->select('id', 'title')->get();
+            })->select('id', 'title', 'manager_id')->get();
         }
         
         $mappedTasks = $tasks->getCollection()->map(function ($task) {
@@ -106,6 +113,7 @@ class TasksController extends Controller
                 'manager'     => $task->manager?->name,
                 'assignee'    => $task->assignee?->name,
                 'project'     => $task->project?->title,
+                'project_id'  => $task->project?->id,
                 'created_at'  => $task->created_at->toDateTimeString(),
                 'updated_at'  => $task->updated_at->toDateTimeString(),
                 'notes'       => $task->notes->map(function ($note) {
@@ -149,44 +157,77 @@ class TasksController extends Controller
             ]),
         ]);
     }
-    public function create(Request $request)
-    {
-        $user = auth()->user();
-        $validated = $request->validate([
-            'title'       => 'required|string|max:255|unique:tasks,title',
-            'description' => 'required|string',
-            'role_title'  => 'required|string',
-            'to_id'       => 'required|exists:users,id',
-            'project_id'  => 'required|exists:projects,id',
-            'priority'    => 'required|in:high,medium,low',
-            'deadline'    => 'nullable|date',
-        ]);
-        // Slug bana letay hein
+public function create(Request $request)
+{
+    $user = auth()->user();
+    
+    // Base validation rules
+    $validationRules = [
+        'title'       => 'required|string|max:255|unique:tasks,title',
+        'description' => 'required|string',
+        'project_id'  => 'required|exists:projects,id',
+        'priority'    => 'required|in:high,medium,low',
+        'deadline'    => 'nullable|date',
+    ];
+    
+    // Add role-specific validation rules
+    if ($user->role === 'client') {
+        // For clients, assignee and role_title are not required as they'll be set automatically
+        $validationRules['to_id'] = 'nullable|exists:users,id';
+        $validationRules['role_title'] = 'nullable|string';
+    } else {
+        // For other roles, these fields are required
+        $validationRules['to_id'] = 'required|exists:users,id';
+        $validationRules['role_title'] = 'required|string';
+    }
+    
+    $validated = $request->validate($validationRules);
+    
+    // Slug the role_title if provided
+    if (!empty($validated['role_title'])) {
         $validated['role_title'] = Str::slug($validated['role_title']);
-        $isManager = $user->managedProjects()
-            ->where('id', $validated['project_id'])
-            ->exists();
-        $isClient = $user->clientProjects()
-            ->where('id', $validated['project_id'])
-            ->exists();
-        if (!$isManager && !$isClient && $user->role !== 'admin') {
+    }
+    
+    // Check if user is authorized to assign tasks for this project
+    $isManager = $user->managedProjects()
+        ->where('id', $validated['project_id'])
+        ->exists();
+    $isClient = $user->clientProjects()
+        ->where('id', $validated['project_id'])
+        ->exists();
+    
+    if (!$isManager && !$isClient && $user->role !== 'admin') {
+        return back()->withErrors([
+            'project_id' => 'You are not authorized to assign tasks for this project.'
+        ]);
+    }
+    
+    // For clients, automatically set the assignee to the project manager and role to 'not-assigned'
+    if ($user->role === 'client') {
+        $project = ProjectsModel::find($validated['project_id']);
+        if (!$project) {
             return back()->withErrors([
-                'project_id' => 'You are not authorized to assign tasks for this project.'
+                'project_id' => 'Selected project not found.'
             ]);
         }
-        TasksModel::create([
-            'title'       => $validated['title'],
-            'description' => $validated['description'],
-            'status'      => 'pending',
-            'to_id'       => $validated['to_id'],
-            'by_id'       => $user->id,
-            'pr_id'       => $validated['project_id'],
-            'role_title'  => $validated['role_title'],
-            'priority'    => $validated['priority'],
-            'deadline'    => $validated['deadline'],
-        ]);
-        return redirect()->back()->with('success', 'Task created successfully.');
+        $validated['to_id'] = $project->manager_id;
+        $validated['role_title'] = 'not-assigned';
     }
+    
+    TasksModel::create([
+        'title'       => $validated['title'],
+        'description' => $validated['description'],
+        'status'      => 'pending',
+        'to_id'       => $validated['to_id'],
+        'by_id'       => $user->id,
+        'pr_id'       => $validated['pr_id'],
+        'role_title'  => $validated['role_title'],
+        'priority'    => $validated['priority'],
+        'deadline'    => $validated['deadline'],
+    ]);
+    
+    return redirect()->back()->with('success', 'Task created successfully.');
+}
     public function update(Request $request, $id)
     {
         $task = TasksModel::findOrFail($id);
@@ -232,6 +273,10 @@ class TasksController extends Controller
         if (!empty($validated['role_title'])) {
             $validated['role_title'] = Str::slug($validated['role_title']);
         }
+if (isset($validated['project_id'])) {
+    $validated['pr_id'] = $validated['project_id'];
+    unset($validated['project_id']);
+}
 
     $task->update(array_filter($validated, fn($val) => $val !== null));
 

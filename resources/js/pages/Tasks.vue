@@ -167,48 +167,104 @@ const isViewDialogOpen = ref(false);
 const viewTask = ref(null);
 const isFilterOpen = ref(false);
 
-// form
+function setClientDefaults() {
+  if (user.role === "client" && form.project_id) {
+    const selectedProject = props.manager_of.find((p) => p.id === form.project_id);
+    if (selectedProject) {
+      // Set assignee to the project's manager
+      form.to_id = selectedProject.manager_id;
+      // Set role to 'not-assigned'
+      form.role_title = "not-assigned";
+    }
+  }
+}
+
+// form initialization
 const form = useForm({
   title: "",
   description: "",
   to_id: "",
   project_id: "",
   status: "pending",
-  role_title: "frontend-developer",
+  role_title: user.role === "client" ? "not-assigned" : "frontend-developer",
   priority: "medium",
   deadline: "",
 });
 
-// create / update
+watch(
+  () => form.project_id,
+  () => {
+    setClientDefaults();
+  },
+  { immediate: true }
+);
+
 function submitForm() {
+  // For clients, ensure we have a project_id and that to_id is set
+  if (user.role === "client") {
+    if (!form.project_id) {
+      form.setError("project_id", "Project is required");
+      return;
+    }
+    setClientDefaults();
+  }
+
   if (isEditMode.value && editId.value) {
     form.put(`/tasks/update/${editId.value}`, {
       onSuccess: () => {
         isDialogOpen.value = false;
-        form.reset();
+        resetForm();
       },
     });
   } else {
     form.post("/tasks/create", {
       onSuccess: () => {
         isDialogOpen.value = false;
-        form.reset();
+        resetForm();
       },
     });
   }
 }
 
+function resetForm() {
+  form.reset();
+  form.clearErrors();
+
+  // Set defaults based on user role
+  if (user.role === "client") {
+    form.role_title = "not-assigned";
+  } else {
+    form.role_title = "frontend-developer";
+  }
+
+  form.status = "pending";
+  form.priority = "medium";
+}
+
+function openNewTaskDialog() {
+  isEditMode.value = false;
+  resetForm();
+  isDialogOpen.value = true;
+}
+
 // edit
 function editTask(task) {
   isEditMode.value = true;
-  form.reset();
+  resetForm();
   editId.value = task.id;
   form.title = task.title;
   form.description = task.description;
-  form.to_id = props.names.find((u) => u.name === task.assignee)?.id || "";
   form.project_id = props.manager_of.find((p) => p.title === task.project)?.id || "";
+
+  // If client, set defaults based on project
+  if (user.role === "client") {
+    setClientDefaults();
+  } else {
+    form.to_id = props.names.find((u) => u.name === task.assignee)?.id || "";
+    form.role_title = task.role_title || "frontend-developer";
+  }
+
   form.status = task.status;
-  form.role_title = task.role_title || "frontend-developer";
   form.priority = task.priority || "medium";
   form.deadline = task.deadline || "";
   isDialogOpen.value = true;
@@ -311,8 +367,8 @@ const projectOptions = computed(() => {
   ];
 });
 
-function isAssignee(task) {
-  return task.assignee === user.name;
+function isManager(task) {
+  return props.manager_of.some((project) => project.id === task.project_id);
 }
 
 // Status options for assignees (only pending, in_progress, completed)
@@ -342,7 +398,6 @@ function updateTaskStatus(task, newStatus) {
     }
   );
 }
-
 // Get priority color
 function getPriorityColor(priority) {
   switch (priority) {
@@ -455,15 +510,7 @@ async function deleteNote(id) {
           </Dropdown>
           <Button
             v-if="props.manager_of.length || user.role === 'admin'"
-            @click="
-              () => {
-                isEditMode = false;
-                form.resetAndClearErrors();
-                form.status = 'pending';
-                form.priority = 'medium';
-                isDialogOpen = true;
-              }
-            "
+            @click="openNewTaskDialog"
             >+ New</Button
           >
         </div>
@@ -655,7 +702,7 @@ async function deleteNote(id) {
                 </div>
                 <!-- Status display for non-assignees -->
                 <span
-                  v-if="!isAssignee(task)"
+                  v-if="isManager(task)"
                   class="px-2 py-1 rounded-full text-xs font-semibold capitalize"
                   :class="{
                     'bg-yellow-100 text-yellow-800': task.status === 'pending',
@@ -670,7 +717,7 @@ async function deleteNote(id) {
                 </span>
               </div>
               <!-- Status dropdown for assignees -->
-              <template v-if="isAssignee(task)">
+              <template v-if="!isManager(task)">
                 <label v-if="task.status === 'cancelled'" class="text-red-400 ml-2">
                   Task Cancelled!
                 </label>
@@ -685,7 +732,7 @@ async function deleteNote(id) {
                 />
               </template>
               <!-- Action buttons -->
-              <div class="flex gap-0.5 text-sm" v-if="!isAssignee(task)">
+              <div class="flex gap-0.5 text-sm" v-if="isManager(task)">
                 <!-- Edit button only for non-assignees -->
                 <button
                   class="p-1 rounded-md hover:bg-white/20 transition"
@@ -718,15 +765,7 @@ async function deleteNote(id) {
             <Button
               v-if="props.manager_of.length || user.role === 'admin'"
               class="mt-4"
-              @click="
-                () => {
-                  isEditMode = false;
-                  form.reset();
-                  form.status = 'pending';
-                  form.priority = 'medium';
-                  isDialogOpen = true;
-                }
-              "
+              @click="openNewTaskDialog"
             >
               + Assign First Task
             </Button>
@@ -795,148 +834,151 @@ async function deleteNote(id) {
       </template>
     </Dialog>
 
-    <!-- Task Create/Edit Dialog -->
-    <Dialog v-model="isDialogOpen">
-      <!-- Header -->
-      <template #header>
-        <h2 class="text-xl font-bold text-gray-800 dark:text-gray-100">
-          {{ isEditMode ? "Update Task" : "Assign New Task" }}
-        </h2>
-        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
-          {{
-            isEditMode
-              ? "Modify the task details below"
-              : "Fill in details to create a new task"
-          }}
-        </p>
-      </template>
-      <!-- Body -->
-      <template #body>
-        <form @submit.prevent="submitForm" class="flex flex-col gap-4">
-          <!-- Title -->
-          <div>
-            <label class="block text-sm font-medium mb-1">Title</label>
-            <Input v-model="form.title" placeholder="Task Title" class="w-full" />
-            <InputError :message="form.errors.title" />
-          </div>
-          <!-- Description -->
-          <div>
-            <label class="text-sm font-medium mb-1 flex flex-row gap-2 items-baseline"
-              >Description
-              <p class="text-xs font-extralight">(markdown & tailwind supported!)</p>
-            </label>
-            <textarea
-              v-model="form.description"
-              placeholder="Describe the task..."
-              class="border rounded-lg p-3 text-sm w-full focus:ring-2 focus:ring-primary focus:outline-none transition"
-              rows="3"
-            ></textarea>
-            <InputError :message="form.errors.description" />
-          </div>
-          <div class="w-full flex flex-row p-1 gap-2">
-            <div class="w-1/2">
-              <label class="block text-sm font-medium mb-1">Assignee</label>
-              <Dropdown
-                v-model="form.to_id"
-                :options="
-                  props.names.map((user) => ({ label: user.name, value: user.id }))
-                "
-              />
-              <InputError :message="form.errors.to_id" />
-            </div>
-            <div class="w-1/2">
-              <label class="block text-sm font-medium mb-1">Project</label>
-              <Dropdown
-                v-model="form.project_id"
-                :options="
-                  props.manager_of.map((project) => ({
-                    label: project.title,
-                    value: project.id,
-                  }))
-                "
-              />
-              <InputError :message="form.errors.project_id" />
-            </div>
-          </div>
-          <div class="w-full flex flex-row p-1 gap-2">
-            <div class="w-1/2">
-              <label class="block text-sm font-medium mb-1">Role</label>
-              <Dropdown v-model="form.role_title" :options="options" />
-            </div>
-            <div
-              class="w-1/2"
-              v-if="
-                form.role_title === null ||
-                !options
-                  .filter((opt) => opt.value)
-                  .some((opt) => opt.value === form.role_title)
+  <Dialog v-model="isDialogOpen">
+    <!-- Header -->
+    <template #header>
+      <h2 class="text-xl font-bold text-gray-800 dark:text-gray-100">
+        {{ isEditMode ? "Update Task" : "Assign New Task" }}
+      </h2>
+      <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
+        {{
+          isEditMode
+            ? "Modify the task details below"
+            : "Fill in details to create a new task"
+        }}
+      </p>
+    </template>
+    <!-- Body -->
+    <template #body>
+      <form @submit.prevent="submitForm" class="flex flex-col gap-4">
+        <!-- Title -->
+        <div>
+          <label class="block text-sm font-medium mb-1">Title</label>
+          <Input v-model="form.title" placeholder="Task Title" class="w-full" />
+          <InputError :message="form.errors.title" />
+        </div>
+        <!-- Description -->
+        <div>
+          <label class="text-sm font-medium mb-1 flex flex-row gap-2 items-baseline"
+            >Description
+            <p class="text-xs font-extralight">(markdown & tailwind supported!)</p>
+          </label>
+          <textarea
+            v-model="form.description"
+            placeholder="Describe the task..."
+            class="border rounded-lg p-3 text-sm w-full focus:ring-2 focus:ring-primary focus:outline-none transition"
+            rows="3"
+          ></textarea>
+          <InputError :message="form.errors.description" />
+        </div>
+        
+        <!-- Modified section for Assignee and Project -->
+        <div class="w-full flex flex-row p-1 gap-2">
+          <!-- Assignee field - hidden for clients -->
+          <div class="w-1/2" v-if="user.role !== 'client'">
+            <label class="block text-sm font-medium mb-1">Assignee</label>
+            <Dropdown
+              v-model="form.to_id"
+              :options="
+                props.names.map((user) => ({ label: user.name, value: user.id }))
               "
-            >
-              <label class="block text-sm font-medium mb-1">New Role</label>
-              <Input
-                v-model="form.role_title"
-                class="mt-1"
-                placeholder="Enter new role_title"
-              />
-              <InputError :message="form.errors.role_title" />
-            </div>
-            <div class="w-1/2" v-if="isEditMode">
-              <label class="block text-sm font-medium mb-1">Status</label>
-              <Dropdown v-model="form.status" :options="statusOptions" />
-            </div>
+            />
+            <InputError :message="form.errors.to_id" />
           </div>
-
-          <!-- Priority and Deadline -->
-          <div class="w-full flex flex-row p-1 gap-2">
-            <div class="w-1/2">
-              <label class="block text-sm font-medium mb-1">Priority</label>
-              <Dropdown
-                v-model="form.priority"
-                :options="[
-                  { label: 'Low', value: 'low' },
-                  { label: 'Medium', value: 'medium' },
-                  { label: 'High', value: 'high' },
-                ]"
-              />
-              <InputError :message="form.errors.priority" />
-            </div>
-            <div class="w-1/2">
-              <label class="block text-sm font-medium mb-1">Deadline</label>
-              <Picker v-model="form.deadline" />
-              <InputError :message="form.errors.deadline" />
-            </div>
+          
+          <!-- Project field - shown for all users -->
+          <div :class="user.role === 'client' ? 'w-full' : 'w-1/2'">
+            <label class="block text-sm font-medium mb-1">Project</label>
+            <Dropdown
+              v-model="form.project_id"
+              :options="
+                props.manager_of.map((project) => ({
+                  label: project.title,
+                  value: project.id,
+                }))
+              "
+            />
+            <InputError :message="form.errors.project_id" />
           </div>
-        </form>
-      </template>
-      <!-- Footer -->
-      <template #footer>
-        <div class="flex justify-end gap-3">
-          <Button
-            variant="outline"
-            class="hover:bg-gray-100 dark:hover:bg-gray-800"
-            @click="
-              () => {
-                form.reset();
-                form.clearErrors();
-                isDialogOpen = false;
-                isEditMode = false;
-                editId = null;
-              }
+        </div>
+        
+        <!-- Role field - hidden for clients -->
+        <div class="w-full flex flex-row p-1 gap-2" v-if="user.role !== 'client'">
+          <div class="w-1/2">
+            <label class="block text-sm font-medium mb-1">Role</label>
+            <Dropdown v-model="form.role_title" :options="options" />
+          </div>
+          <div
+            class="w-1/2"
+            v-if="
+              form.role_title === null ||
+              !options
+                .filter((opt) => opt.value)
+                .some((opt) => opt.value === form.role_title)
             "
           >
-            Cancel
-          </Button>
-          <Button
-            @click="submitForm"
-            :disabled="form.processing"
-            class="transition-transform hover:scale-105"
-          >
-            {{ isEditMode ? "Update" : "Create" }}
-          </Button>
+            <label class="block text-sm font-medium mb-1">New Role</label>
+            <Input
+              v-model="form.role_title"
+              class="mt-1"
+              placeholder="Enter new role_title"
+            />
+            <InputError :message="form.errors.role_title" />
+          </div>
+          <div class="w-1/2" v-if="isEditMode">
+            <label class="block text-sm font-medium mb-1">Status</label>
+            <Dropdown v-model="form.status" :options="statusOptions" />
+          </div>
         </div>
-      </template>
-    </Dialog>
 
+        <!-- Priority and Deadline -->
+        <div class="w-full flex flex-row p-1 gap-2">
+          <div class="w-1/2">
+            <label class="block text-sm font-medium mb-1">Priority</label>
+            <Dropdown
+              v-model="form.priority"
+              :options="[
+                { label: 'Low', value: 'low' },
+                { label: 'Medium', value: 'medium' },
+                { label: 'High', value: 'high' },
+              ]"
+            />
+            <InputError :message="form.errors.priority" />
+          </div>
+          <div class="w-1/2">
+            <label class="block text-sm font-medium mb-1">Deadline</label>
+            <Picker v-model="form.deadline" />
+            <InputError :message="form.errors.deadline" />
+          </div>
+        </div>
+      </form>
+    </template>
+    <!-- Footer -->
+    <template #footer>
+      <div class="flex justify-end gap-3">
+        <Button
+          variant="outline"
+          class="hover:bg-gray-100 dark:hover:bg-gray-800"
+          @click="
+            () => {
+              isDialogOpen.value = false;
+              isEditMode.value = false;
+              editId.value = null;
+            }
+          "
+        >
+          Cancel
+        </Button>
+        <Button
+          @click="submitForm"
+          :disabled="form.processing"
+          class="transition-transform hover:scale-105"
+        >
+          {{ isEditMode ? "Update" : "Create" }}
+        </Button>
+      </div>
+    </template>
+  </Dialog>
     <!-- View Dialog -->
     <Dialog v-model="isViewDialogOpen">
       <!-- Header -->
