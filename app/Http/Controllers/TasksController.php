@@ -220,7 +220,7 @@ public function create(Request $request)
         'status'      => 'pending',
         'to_id'       => $validated['to_id'],
         'by_id'       => $user->id,
-        'pr_id'       => $validated['pr_id'],
+        'pr_id'       => $validated['project_id'],
         'role_title'  => $validated['role_title'],
         'priority'    => $validated['priority'],
         'deadline'    => $validated['deadline'],
@@ -273,10 +273,10 @@ public function create(Request $request)
         if (!empty($validated['role_title'])) {
             $validated['role_title'] = Str::slug($validated['role_title']);
         }
-if (isset($validated['project_id'])) {
-    $validated['pr_id'] = $validated['project_id'];
-    unset($validated['project_id']);
-}
+        if (isset($validated['project_id'])) {
+            $validated['pr_id'] = $validated['project_id'];
+            unset($validated['project_id']);
+        }
 
     $task->update(array_filter($validated, fn($val) => $val !== null));
 
