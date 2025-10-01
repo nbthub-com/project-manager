@@ -16,6 +16,7 @@ import {
   ChevronDown,
   Edit,
   Eye,
+  Filter,
   Gauge,
   List,
   ListCheckIcon,
@@ -30,6 +31,7 @@ import { ref, computed } from "vue";
 import { defineProps } from "vue";
 import { usePage } from "@inertiajs/vue3";
 import axios from "axios";
+import Select from "@/components/ui/select/Select.vue";
 
 const props = defineProps(["project"]);
 const user = usePage().props.auth.user;
@@ -49,12 +51,23 @@ function formatDate(date) {
   });
 }
 const searchQuery = ref("");
+const filterStatus = ref(null);
+const filterPriority = ref(null);
 
 const filteredTasks = computed(() => {
-  if (!searchQuery.value) return props.project.tasks;
-  return props.project.tasks.filter((task) =>
-    task.title.toLowerCase().includes(searchQuery.value.toLowerCase())
-  );
+  let tasks = props.project.tasks;
+  if (searchQuery.value) {
+    tasks = tasks.filter((task) =>
+      task.title.toLowerCase().includes(searchQuery.value.toLowerCase())
+    );
+  }
+  if (filterStatus.value) {
+    tasks = tasks.filter((task) => task.status === filterStatus.value);
+  }
+  if (filterPriority.value) {
+    tasks = tasks.filter((task) => task.priority === filterPriority.value);
+  }
+  return tasks;
 });
 
 const viewTask = ref(null);
@@ -188,6 +201,7 @@ const statusOptions = [
   { value: "completed", label: "Completed" },
   { value: "cancelled", label: "Cancelled" },
 ];
+const openFilter = ref(false);
 </script>
 
 <template>
@@ -196,7 +210,7 @@ const statusOptions = [
     <div class="flex flex-col sm:flex-row w-full h-full">
       <div class="w-full h-full p-1">
         <div class="border-b-2 flex flex-row justify-between p-1 items-center gap-2">
-          <div class="w-full sm:w-sm flex flex-row">
+          <div class="w-full sm:w-lg flex flex-row">
             <Input
               v-model="searchQuery"
               class="transition-all duration-300 ease-in-out rounded-r-none"
@@ -205,8 +219,79 @@ const statusOptions = [
             <Button class="rounded-none rounded-tr-lg rounded-br-lg outline-1">
               <Search />
             </Button>
+            <div class="w-fit gap-2 ml-2 flex-row items-center hidden sm:flex">
+              <Dropdown
+                v-model="filterPriority"
+                :options="[
+                  { label: 'All', value: null },
+                  { label: 'Low', value: 'low' },
+                  { label: 'Medium', value: 'medium' },
+                  { label: 'High', value: 'high' },
+                ]"
+              />
+              <Dropdown
+                v-model="filterStatus"
+                :options="[
+                  { label: 'All', value: null },
+                  { label: 'Pending', value: 'pending' },
+                  { label: 'Running', value: 'in_progress' },
+                  { label: 'Review', value: 'review' },
+                  { label: 'Testing', value: 'testing' },
+                  { label: 'Completed', value: 'completed' },
+                  { label: 'Cancelled', value: 'cancelled' },
+                ]"
+              />
+            </div>
+          </div>
+          <div class="relative sm:hidden">
+            <!-- Dropdown Menu -->
+            <transition
+              enter-active-class="transition ease-out duration-200"
+              enter-from-class="opacity-0 scale-95"
+              enter-to-class="opacity-100 scale-100"
+              leave-active-class="transition ease-in duration-150"
+              leave-from-class="opacity-100 scale-100"
+              leave-to-class="opacity-0 scale-95"
+            >
+              <div
+                v-if="openFilter"
+                class="absolute mt-2 w-[100px] bg-gray-900 border border-gray-700 rounded-lg shadow-lg p-3 z-50 flex flex-col gap-3"
+              >
+                <Dropdown
+                  v-model="filterPriority"
+                  :options="[
+                    { label: 'All', value: null },
+                    { label: 'Low', value: 'low' },
+                    { label: 'Medium', value: 'medium' },
+                    { label: 'High', value: 'high' },
+                  ]"
+                />
+
+                <Dropdown
+                  v-model="filterStatus"
+                  :options="[
+                    { label: 'All', value: null },
+                    { label: 'Pending', value: 'pending' },
+                    { label: 'Running', value: 'in_progress' },
+                    { label: 'Review', value: 'review' },
+                    { label: 'Testing', value: 'testing' },
+                    { label: 'Completed', value: 'completed' },
+                    { label: 'Cancelled', value: 'cancelled' },
+                  ]"
+                />
+
+                <Button size="sm" @click="openFilter = false">Close</Button>
+              </div>
+            </transition>
           </div>
           <div class="w-fit sm:gap-2 sm:px-1 items-center flex flex-row">
+            <Button
+              variant="outline"
+              class="flex sm:hidden"
+              @click="openFilter = !openFilter"
+            >
+              <Filter />
+            </Button>
             <Button
               variant="outline"
               class="rounded-none rounded-tl-lg rounded-bl-lg sm:rounded-lg"
