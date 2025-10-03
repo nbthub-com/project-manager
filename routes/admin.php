@@ -12,6 +12,7 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->group(function () {
 
     // Form handlers
     Route::get('/members', [AdminController::class, 'view_mems'])->name('members.view');
+    Route::get('/members/{id}', [AdminController::class, 'view_member']);
     Route::post('/members/add-member', [AdminController::class, 'add_mem'])->name('members.add');
     Route::delete('/members/delete/{id}', [AdminController::class, 'delete_mem'])->name('members.delete');
     Route::get('/search/{query}', [AdminController::class, 'search'])->name('members.search');

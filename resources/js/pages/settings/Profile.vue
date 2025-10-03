@@ -115,7 +115,6 @@ const submit = () => {
         </form>
       </div>
 
-      <DeleteUser />
     </SettingsLayout>
   </AppLayout>
 </template>

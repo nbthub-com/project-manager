@@ -279,7 +279,6 @@ const openFilter = ref(false);
                     { label: 'Cancelled', value: 'cancelled' },
                   ]"
                 />
-
                 <Button size="sm" @click="openFilter = false">Close</Button>
               </div>
             </transition>

@@ -175,7 +175,54 @@ class AdminController extends Controller
         // Return Inertia response with updated users and flash message
         return redirect()->route('members.view')->with('success', 'Member deleted successfully!');
     }
-    
+
+    public function view_member($id)
+    {
+        $member = User::with([
+            'managedProjects' => [
+                'tasks.notes.member',
+                'notes.member',
+                'client',
+            ],
+            'clientProjects' => [
+                'tasks.notes.member',
+                'notes.member',
+                'manager',
+                'client',
+            ],
+            'assignedTasks' => [
+                'project',
+                'notes.member',
+                'manager',
+                'assignee'
+            ],
+            'givenTasks' => [
+                'project',
+                'notes.member',
+                'assignee'
+            ],
+        ])->findOrFail($id);
+
+        // Get all users for assignee dropdown
+        $names = User::where('id', '!=', $id) // Exclude current member
+                    ->whereIn('role', ['user', 'admin']) // Only members/admins, not clients
+                    ->select('id', 'name')
+                    ->get();
+
+        // Get all roles for dropdown
+        $roles = \App\Models\TasksModel::distinct()
+                    ->whereNotNull('role_title')
+                    ->pluck('role_title')
+                    ->toArray();
+
+        return Inertia::render('admin/MemberShow', [
+            'member' => $member->toArray(),
+            'names' => $names,
+            'roles' => $roles,
+            'manager_of' => $member->managedProjects,
+        ]);
+    }
+
     public function search($query)
     {
         $query = strtolower($query);

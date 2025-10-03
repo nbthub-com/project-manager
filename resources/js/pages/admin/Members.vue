@@ -104,7 +104,6 @@ const roleOptions = computed(() => {
 
 // dialogs
 const isDialogOpen = ref(false);
-const isViewDialogOpen = ref(false);
 const selectedUser = ref(null);
 
 // form
@@ -115,6 +114,10 @@ const form = useForm({
   password_confirmation: "",
   role: "user",
 });
+
+function openView(id){
+  router.visit(`/admin/members/${id}`)
+}
 
 // create
 function submitForm() {
@@ -135,11 +138,6 @@ function deleteUser(id) {
   }
 }
 
-// view
-function openView(user) {
-  selectedUser.value = user;
-  isViewDialogOpen.value = true;
-}
 const openTask = ref();
 </script>
 
@@ -255,7 +253,7 @@ const openTask = ref();
               class="flex justify-between items-center border-b border-white/20 pb-2 mb-3"
             >
               <h3 class="text-lg font-bold flex flex-row">
-                <span class="cursor-pointer hover:underline" @click="openView(user)">
+                <span class="cursor-pointer hover:underline" @click="openView(user.id)">
                   {{ toTitleCase(user.name) }}
                 </span>
                 <span class="font-extralight text-[12px] ml-1 h-full gap-2 flex flex-row">
@@ -411,94 +409,6 @@ const openTask = ref();
         <template #footer>
           <Button @click="isDialogOpen = false"> Cancel </Button>
           <Button @click="submitForm"> Save </Button>
-        </template>
-      </Dialog>
-
-      <!-- View Member Dialog -->
-      <Dialog v-model="isViewDialogOpen">
-        <!-- Header -->
-        <template #header>
-          <div class="flex items-center gap-3">
-            <div
-              class="w-12 h-12 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white font-bold text-lg"
-            >
-              {{ getInitials(selectedUser?.name) }}
-            </div>
-            <div>
-              <h2 class="text-lg font-semibold flex items-center gap-2">
-                {{ selectedUser?.name }}
-                <span
-                  v-if="selectedUser?.is_client"
-                  class="px-2 py-0.5 text-xs rounded-full bg-yellow-400 text-black font-bold"
-                >
-                  CLIENT
-                </span>
-              </h2>
-              <p class="text-sm text-gray-500">{{ selectedUser?.email }}</p>
-            </div>
-          </div>
-        </template>
-
-        <!-- Body -->
-        <template #body>
-          <div v-if="selectedUser" class="flex flex-col gap-4 p-2">
-            <div class="grid grid-cols-3 gap-1">
-              <div v-if="!selectedUser.is_client && selectedUser.projects_assigned">
-                <p class="font-medium text-gray-300">
-                  Projects Assigned
-                </p>
-                <p class="text-base font-semibold">
-                  {{ selectedUser.projects_assigned }}
-                </p>
-              </div>
-              <div v-if="!selectedUser.is_client && selectedUser.projects_assigned">
-                <p class="font-mediumtext-gray-300">Projects Done</p>
-                <p class="text-base font-semibold">
-                  {{ selectedUser.projects_done }}
-                </p>
-              </div>
-              <div v-if="selectedUser.is_client">
-                <p class="font-mediumtext-gray-300">Owned Tasks</p>
-                <p class="text-base font-semibold">
-                  {{ selectedUser.client_tasks }}
-                </p>
-              </div>
-              <div v-if="selectedUser.is_client">
-                <p class="font-mediumtext-gray-300">Owned Projects</p>
-                <p class="text-base font-semibold">
-                  {{ selectedUser.client_projects }}
-                </p>
-              </div>
-            </div>
-            <p class="font-medium text-gray-300 flex flex-row">Roles :
-              <span
-                v-for="(role, idx) in selectedUser.roles"
-                :key="idx"
-                class="px-2 py-0.5 rounded-full justify-center text-xs font-medium bg-blue-500 text-white"
-              >
-                 {{ toTitleCase(role.replace("-", " ")) }}
-              </span>
-              <span
-                v-if="!selectedUser.roles || selectedUser.roles.length === 0"
-                class="text-xs text-gray-500 italic"
-              >
-                No roles
-              </span>
-            </p>
-            <!-- Task List -->
-            <div v-if="selectedUser.tasks && selectedUser.tasks.length">
-              <p class="font-medium text-gray-300 mb-1">Tasks</p>
-              <ul class="space-y-1">
-                <li
-                  v-for="task in selectedUser.tasks"
-                  :key="task.id"
-                  class="text-sm text-white border-b text-md pb-1"
-                >
-                  {{ task.to_id === selectedUser.id ? 'for' : 'by' }}: {{ task.title }} ({{ task.description }})
-                </li>
-              </ul>
-            </div>
-          </div>
         </template>
       </Dialog>
     </div>
