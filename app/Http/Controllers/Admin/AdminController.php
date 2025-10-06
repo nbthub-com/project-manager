@@ -215,11 +215,20 @@ class AdminController extends Controller
                     ->pluck('role_title')
                     ->toArray();
 
+        // Get clients and managers for project creation
+        $clients = [];
+        $managers = [];
+        
+        $clients = User::where('role', 'client')->pluck('name')->toArray();        
+        $managers = User::whereIn('role', ['user', 'admin'])->pluck('name')->toArray();
+
         return Inertia::render('admin/MemberShow', [
             'member' => $member->toArray(),
             'names' => $names,
             'roles' => $roles,
             'manager_of' => $member->managedProjects,
+            'clients' => $clients,
+            'managers' => $managers,
         ]);
     }
 

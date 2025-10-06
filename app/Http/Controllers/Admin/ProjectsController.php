@@ -111,17 +111,17 @@ class ProjectsController extends Controller
 
         $manager = User::where('name', $validated['manager'])->first();
         if (!$manager) {
-            return redirect()->route('admin.projects')
+            return redirect()->back()
                 ->with('error', 'Selected manager not found!');
         }
         if($manager->role === 'client')
         {
-            return redirect()->route('admin.projects')
+            return redirect()->back()
                 ->with('error', 'Client cannot be manager!');
         }
         $client = User::where('name', $validated['client'])->where('role', 'client')->first();
         if (!$client) {
-            return redirect()->route('admin.projects')
+            return redirect()->back()
                 ->with('error', 'Selected client not found!');
         }
         ProjectsModel::create([
@@ -133,7 +133,7 @@ class ProjectsController extends Controller
             'status' => 'in_progress'
         ]);
 
-        return redirect()->route('admin.projects')
+        return redirect()->back()
             ->with('success', 'Project added successfully!');
     }
 
@@ -164,17 +164,17 @@ class ProjectsController extends Controller
 
         $manager = User::where('name', $validated['manager'])->first();
         if (!$manager) {
-            return redirect()->route('admin.projects')
+            return redirect()->back()
                 ->with('error', 'Selected manager not found!');
         }
         if($manager->role === 'client')
         {
-            return redirect()->route('admin.projects')
+            return redirect()->back()
                 ->with('error', 'Client cannot be manager!');
         }
         $client = User::where('name', $validated['client'])->where('role', 'client')->first();
         if (!$client) {
-            return redirect()->route('admin.projects')
+            return redirect()->back()
                 ->with('error', 'Selected client not found!');
         }
         $project->update([
@@ -191,7 +191,7 @@ class ProjectsController extends Controller
             $project->tasks()->update(['status' => 'cancelled']);
         }
 
-        return redirect()->route('admin.projects')
+        return redirect()->back()
             ->with('success', 'Project updated successfully!');
     }
 
@@ -206,7 +206,7 @@ class ProjectsController extends Controller
         
         $project->delete();
         
-        return redirect()->route('admin.projects')
+        return redirect()->back()
             ->with('success', 'Project deleted successfully!');
     }
 }

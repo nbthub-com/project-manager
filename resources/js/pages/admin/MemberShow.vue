@@ -30,9 +30,17 @@ import { defineProps, ref, computed } from "vue";
 import Dropdown from "@/components/ui/select/Select.vue";
 import Picker from "@/components/ui/date/Picker.vue";
 import { watchEffect } from "vue";
+import Viewer from "@/components/ui/md/viewer.vue";
 
 // Add the missing props
-const props = defineProps(["member", "names", "roles", "manager_of"]);
+const props = defineProps([
+  "member",
+  "names",
+  "roles",
+  "manager_of",
+  "clients",
+  "managers",
+]);
 
 const member = props.member;
 
@@ -80,32 +88,62 @@ const toggleProject = (id) => {
 };
 
 const stats = computed(() => {
-  const assignedTasks = member.assigned_tasks || [];
-  const totalTasks = assignedTasks.length;
-  const completedTasks = assignedTasks.filter((t) => t.status === "completed").length;
-  const runningTasks = assignedTasks.filter((t) => t.status === "running").length;
+  if (member.role === "client") {
+    // For clients: use clientProjects
+    const clientProjects = member.client_projects || [];
+    const totalProjects = clientProjects.length;
+    const completedProjects = clientProjects.filter((p) => p.status === "completed")
+      .length;
+    const runningProjects = clientProjects.filter((p) => p.status === "running").length;
 
-  const projectMap = new Map();
-  for (const task of assignedTasks) {
-    if (task.project) {
-      projectMap.set(task.project.id, task.project);
+    // Collect all tasks from client projects
+    const allTasks = [];
+    clientProjects.forEach((project) => {
+      if (project.tasks) {
+        allTasks.push(...project.tasks);
+      }
+    });
+    const totalTasks = allTasks.length;
+    const completedTasks = allTasks.filter((t) => t.status === "completed").length;
+    const runningTasks = allTasks.filter((t) => t.status === "running").length;
+
+    return {
+      totalTasks,
+      completedTasks,
+      runningTasks,
+      totalProjects,
+      completedProjects,
+      runningProjects,
+    };
+  } else {
+    // For members: original logic
+    const assignedTasks = member.assigned_tasks || [];
+    const totalTasks = assignedTasks.length;
+    const completedTasks = assignedTasks.filter((t) => t.status === "completed").length;
+    const runningTasks = assignedTasks.filter((t) => t.status === "running").length;
+
+    const projectMap = new Map();
+    for (const task of assignedTasks) {
+      if (task.project) {
+        projectMap.set(task.project.id, task.project);
+      }
     }
+
+    const assignedProjects = Array.from(projectMap.values());
+    const totalProjects = assignedProjects.length;
+    const completedProjects = assignedProjects.filter((p) => p.status === "completed")
+      .length;
+    const runningProjects = assignedProjects.filter((p) => p.status === "running").length;
+
+    return {
+      totalTasks,
+      completedTasks,
+      runningTasks,
+      totalProjects,
+      completedProjects,
+      runningProjects,
+    };
   }
-
-  const assignedProjects = Array.from(projectMap.values());
-  const totalProjects = assignedProjects.length;
-  const completedProjects = assignedProjects.filter((p) => p.status === "completed")
-    .length;
-  const runningProjects = assignedProjects.filter((p) => p.status === "running").length;
-
-  return {
-    totalTasks,
-    completedTasks,
-    runningTasks,
-    totalProjects,
-    completedProjects,
-    runningProjects,
-  };
 });
 
 const form = useForm({
@@ -117,6 +155,35 @@ const form = useForm({
   role_title: "frontend-developer",
   priority: "medium",
   deadline: "",
+});
+
+// Project form
+const projectForm = useForm({
+  title: "",
+  description: "",
+  client: "",
+  manager: "",
+  status: "in_progress",
+  is_starred: false,
+});
+
+// Status options for project
+const projectStatusOptions = [
+  { label: "Pending", value: "pending" },
+  { label: "In Progress", value: "in_progress" },
+  { label: "Testing", value: "testing" },
+  { label: "Review", value: "review" },
+  { label: "Completed", value: "completed" },
+  { label: "Cancelled", value: "cancelled" },
+];
+
+// Client and manager options
+const clientOptions = computed(() => {
+  return props.clients?.map((name) => ({ label: name, value: name })) || [];
+});
+
+const managerOptions = computed(() => {
+  return props.managers?.map((name) => ({ label: name, value: name })) || [];
 });
 
 // Role options for dropdown
@@ -316,12 +383,188 @@ function closeNewTaskDialog() {
   resetForm();
 }
 
+// Project dialog functions
+function openNewProjectDialog() {
+  projectForm.reset();
+  projectForm.status = "in_progress";
+  projectForm.is_starred = false;
+
+  // Pre-set based on current member's role
+  if (member.role === "client") {
+    projectForm.client = member.name;
+    // Don't set manager as it won't be shown
+  } else if (member.role === "user") {
+    projectForm.manager = member.name;
+    // Don't set client as it won't be shown
+  }
+
+  isNewProjectOpen.value = true;
+}
+
+function closeNewProjectDialog() {
+  isNewProjectOpen.value = false;
+  projectForm.reset();
+}
+
+function submitProjectForm() {
+  projectForm.post("/admin/projects/create", {
+    onSuccess: (response) => {
+      isNewProjectOpen.value = false;
+
+      // Get the new project from the response
+      const newProject = response.props?.project || {
+        id: Date.now(), // fallback if nothing
+        title: projectForm.title,
+        description: projectForm.description,
+        status: projectForm.status,
+        is_starred: projectForm.is_starred,
+        client: projectForm.client ? { name: projectForm.client } : null,
+        manager: projectForm.manager ? { name: projectForm.manager } : null,
+        tasks: [], // Initially no tasks
+      };
+
+      // Add to the appropriate project list based on member role
+      if (member.role === "client") {
+        // For clients, add to client_projects
+        if (!member.client_projects) {
+          member.client_projects = [];
+        }
+        member.client_projects.push(newProject);
+      } else {
+        // For members, add to managed_projects
+        if (!member.managed_projects) {
+          member.managed_projects = [];
+        }
+        member.managed_projects.push(newProject);
+      }
+
+      // Add the new project to the open projects list so it's expanded
+      openProjectIds.value.push(newProject.id);
+
+      // Reset the form
+      projectForm.reset();
+    },
+  });
+}
 watchEffect(() => {
   if (filteredProjects.value?.length) {
     openProjectIds.value = filteredProjects.value.map((p) => p.id);
   }
 });
 
+function getStatusClass(status) {
+  const statusClasses = {
+    completed: "bg-green-500/20 text-green-400",
+    running: "bg-blue-500/20 text-blue-400",
+    pending: "bg-yellow-500/20 text-yellow-400",
+    cancelled: "bg-red-500/20 text-red-400",
+  };
+  return statusClasses[status] || "bg-gray-500/20 text-gray-400";
+}
+
+function formatDate(dateString) {
+  if (!dateString) return "";
+  const date = new Date(dateString);
+  return date.toLocaleDateString();
+}
+
+// Add these functions after the existing project dialog functions
+
+function openEditProjectDialog(project) {
+  projectForm.reset();
+  projectForm.title = project.title;
+  projectForm.description = project.description;
+  projectForm.client = project.client?.name || "";
+  projectForm.manager = project.manager?.name || "";
+  projectForm.status = project.status;
+  projectForm.is_starred = project.is_starred;
+
+  currentProj.value = project;
+  isEditProjectOpen.value = true;
+}
+
+function closeEditProjectDialog() {
+  isEditProjectOpen.value = false;
+  projectForm.reset();
+  currentProj.value = null;
+}
+
+function submitEditProjectForm() {
+  if (!currentProj.value) return;
+
+  projectForm.put(`/admin/projects/update/${currentProj.value.id}`, {
+    onSuccess: (response) => {
+      isEditProjectOpen.value = false;
+
+      // Get the updated project from the response
+      const updatedProject = response.props?.project || {
+        id: currentProj.value.id,
+        title: projectForm.title,
+        description: projectForm.description,
+        status: projectForm.status,
+        is_starred: projectForm.is_starred,
+        client: projectForm.client ? { name: projectForm.client } : null,
+        manager: projectForm.manager ? { name: projectForm.manager } : null,
+        tasks: currentProj.value.tasks || [], // Keep existing tasks
+      };
+
+      // Find and update the project in the appropriate list
+      const updateProjectInList = (projects) => {
+        const index = projects.findIndex((p) => p.id === updatedProject.id);
+        if (index !== -1) {
+          projects[index] = updatedProject;
+        }
+      };
+
+      // Update in managed_projects if it exists there
+      if (member.managed_projects) {
+        updateProjectInList(member.managed_projects);
+      }
+
+      // Update in client_projects if it exists there
+      if (member.client_projects) {
+        updateProjectInList(member.client_projects);
+      }
+
+      // Reset the form and current project
+      projectForm.reset();
+      currentProj.value = null;
+    },
+  });
+}
+
+// Project details dialog
+const isProjectDetailsOpen = ref(false);
+const selectedProject = ref(null);
+
+function openProjectDetailsDialog(project) {
+  selectedProject.value = project;
+  isProjectDetailsOpen.value = true;
+}
+
+function closeProjectDetailsDialog() {
+  isProjectDetailsOpen.value = false;
+  selectedProject.value = null;
+}
+
+const projectStats = computed(() => {
+  if (!selectedProject.value) return null;
+
+  const tasks = selectedProject.value.tasks || [];
+  const totalTasks = tasks.length;
+  const pendingTasks = tasks.filter((t) => t.status === "pending").length;
+  const runningTasks = tasks.filter(
+    (t) => t.status === "running" || t.status === "in_progress"
+  ).length;
+  const completedTasks = tasks.filter((t) => t.status === "completed").length;
+
+  return {
+    totalTasks,
+    pendingTasks,
+    runningTasks,
+    completedTasks,
+  };
+});
 </script>
 
 <template>
@@ -341,7 +584,11 @@ watchEffect(() => {
           </Button>
         </div>
         <div class="flex items-center sm:space-x-2 w-full sm:w-auto justify-end">
-          <Button variant="outline" class="rounded-r-none sm:rounded-lg">
+          <Button
+            variant="outline"
+            class="rounded-r-none sm:rounded-lg"
+            @click="openNewProjectDialog"
+          >
             <span class="hidden items-center sm:flex"> <Plus /> Project</span>
             <span class="flex sm:hidden"> <PackagePlus /></span>
           </Button>
@@ -368,9 +615,7 @@ watchEffect(() => {
               class="break-inside-avoid mb-4 rounded-xl overflow-auto transition-all duration-200 hover:shadow-lg border-2 border-purple-800"
             >
               <div
-                class="bg-purple-800 px-2 py-4.5 flex justify-between items-center 
-                          hover:cursor-pointer hover:bg-purple-900 
-                          transition-colors duration-200"
+                class="bg-purple-800 px-2 py-4.5 flex justify-between items-center hover:cursor-pointer hover:bg-purple-900 transition-colors duration-200"
                 @click="openassigned_tasks = !openassigned_tasks"
               >
                 <h2 class="text-lg font-bold">Assigned Tasks</h2>
@@ -397,10 +642,7 @@ watchEffect(() => {
                 leave-from-class="transform opacity-100 translate-y-0"
                 leave-to-class="transform opacity-0 -translate-y-2"
               >
-                <div
-                  v-show="openassigned_tasks"
-                  class="overflow-hidden"
-                >
+                <div v-show="openassigned_tasks" class="overflow-hidden">
                   <div class="flex flex-col mb-2">
                     <div
                       v-for="task in member.assigned_tasks"
@@ -492,7 +734,10 @@ watchEffect(() => {
                 @click="toggleProject(project.id)"
               >
                 <div>
-                  <h2 class="text-lg font-bold hover:underline">
+                  <h2
+                    class="text-lg font-bold hover:underline hover:cursor-pointer"
+                    @click.stop="openProjectDetailsDialog(project)"
+                  >
                     {{ toTitleCase(project.title) }}
                   </h2>
                   <p class="text-xs">
@@ -504,6 +749,10 @@ watchEffect(() => {
                   <span class="text-xs bg-secondary/60 px-2 py-1 rounded-full mr-2">
                     {{ (project.tasks || []).length }} tasks
                   </span>
+                  <Edit
+                    class="w-4 h-4 mr-2 hover:bg-primary/20 hover:cursor-pointer rounded-sm"
+                    @click.stop="openEditProjectDialog(project)"
+                  />
                   <ChevronDown
                     v-if="openProjectIds.includes(project.id)"
                     class="w-5 h-5 transition-transform duration-300 transform rotate-180"
@@ -525,10 +774,10 @@ watchEffect(() => {
                 leave-to-class="transform opacity-0 -translate-y-2"
               >
                 <div
-v-show="openProjectIds.includes(project.id)"
+                  v-show="openProjectIds.includes(project.id)"
                   class="overflow-hidden"
                   :style="
-                    openProjectIds === project.id
+                    openProjectIds.includes(project.id)
                       ? 'max-height: 65vh; overflow-y: auto;'
                       : ''
                   "
@@ -649,7 +898,8 @@ v-show="openProjectIds.includes(project.id)"
         <!-- Tasks Section -->
         <div>
           <p class="font-extrabold text-lg text-gray-300 mb-2 flex items-center gap-2">
-            <List class="w-5 h-5 text-primary" /> Tasks
+            <List class="w-5 h-5 text-primary" />
+            {{ member.role === "client" ? "Project Tasks" : "Assigned Tasks" }}
           </p>
           <div class="grid grid-cols-3 gap-3">
             <div
@@ -676,7 +926,8 @@ v-show="openProjectIds.includes(project.id)"
         <!-- Projects Section -->
         <div>
           <p class="font-extrabold text-lg text-gray-300 mb-2 flex items-center gap-2">
-            <PackagePlus class="w-5 h-5 text-primary" /> Projects
+            <PackagePlus class="w-5 h-5 text-primary" />
+            {{ member.role === "client" ? "Client Projects" : "Assigned Projects" }}
           </p>
           <div class="grid grid-cols-3 gap-3">
             <div
@@ -714,16 +965,29 @@ v-show="openProjectIds.includes(project.id)"
             <p class="text-md font-bold">{{ member.email }}</p>
           </div>
         </div>
+
+        <!-- Additional Info for Clients -->
+        <div v-if="member.role === 'client'">
+          <p class="font-extrabold text-lg text-gray-300 mb-2 flex items-center gap-2">
+            <PackagePlus class="w-5 h-5 text-primary" /> Client Information
+          </p>
+          <div
+            class="p-4 rounded-xl bg-primary/10 hover:bg-primary/20 transition cursor-pointer"
+          >
+            <p class="text-sm text-gray-400">Managed By</p>
+            <p class="text-md font-bold">
+              {{ member.client_projects?.[0]?.manager?.name || "Not assigned" }}
+            </p>
+          </div>
+        </div>
       </div>
     </template>
   </Dialog>
 
   <Dialog v-model="isEditTaskOpen">
     <template #header>
-      <h2 class="text-xl font-bold text-gray-800 dark:text-gray-100">Update Task</h2>
-      <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
-        Modify the task details below
-      </p>
+      <h2 class="text-xl font-bold text-gray-100">Update Task</h2>
+      <p class="text-sm text-gray-400 mt-1">Modify the task details below</p>
     </template>
     <template #body>
       <form @submit.prevent="submitForm">
@@ -816,10 +1080,8 @@ v-show="openProjectIds.includes(project.id)"
 
   <Dialog v-model="isNewTaskDialogOpen">
     <template #header>
-      <h2 class="text-xl font-bold text-gray-800 dark:text-gray-100">Create New Task</h2>
-      <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
-        Add a new task for this member
-      </p>
+      <h2 class="text-xl font-bold text-gray-100">Create New Task</h2>
+      <p class="text-sm text-gray-400 mt-1">Add a new task for this member</p>
     </template>
 
     <template #body>
@@ -897,6 +1159,279 @@ v-show="openProjectIds.includes(project.id)"
       <div class="flex justify-end gap-3">
         <Button variant="outline" @click="closeNewTaskDialog"> Cancel </Button>
         <Button @click="submitForm" :disabled="form.processing"> Create Task </Button>
+      </div>
+    </template>
+  </Dialog>
+
+  <!-- Add Project Dialog -->
+  <Dialog v-model="isNewProjectOpen">
+    <template #header>
+      <h2 class="text-xl font-bold text-gray-100">Create New Project</h2>
+      <p class="text-sm text-gray-400 mt-1">Add a new project</p>
+    </template>
+
+    <template #body>
+      <form @submit.prevent="submitProjectForm" class="space-y-4">
+        <!-- Title -->
+        <div>
+          <label class="block text-sm font-medium mb-1">Title</label>
+          <Input v-model="projectForm.title" placeholder="Project Title" class="w-full" />
+          <InputError :message="projectForm.errors.title" />
+        </div>
+
+        <!-- Client dropdown (only if member is not a client) -->
+        <div v-if="member.role !== 'client'">
+          <label class="block text-sm font-medium mb-1">Client</label>
+          <Dropdown
+            v-model="projectForm.client"
+            :options="clientOptions"
+            placeholder="Select a client"
+            class="w-full"
+          />
+          <InputError :message="projectForm.errors.client" />
+        </div>
+
+        <!-- Manager dropdown (only if member is not a user) -->
+        <div v-if="member.role !== 'user'">
+          <label class="block text-sm font-medium mb-1">Manager</label>
+          <Dropdown
+            v-model="projectForm.manager"
+            :options="managerOptions"
+            placeholder="Select a manager"
+            class="w-full"
+          />
+          <InputError :message="projectForm.errors.manager" />
+        </div>
+
+        <!-- Description -->
+        <div>
+          <label class="block text-sm font-medium mb-1">Description</label>
+          <textarea
+            v-model="projectForm.description"
+            placeholder="Describe the project..."
+            class="border rounded-lg p-3 text-sm w-full focus:ring-2 focus:ring-primary focus:outline-none transition"
+            rows="3"
+          ></textarea>
+          <InputError :message="projectForm.errors.description" />
+        </div>
+
+        <!-- Status -->
+        <div>
+          <label class="block text-sm font-medium mb-1">Status</label>
+          <Dropdown
+            v-model="projectForm.status"
+            :options="projectStatusOptions"
+            class="w-full"
+          />
+          <InputError :message="projectForm.errors.status" />
+        </div>
+
+        <!-- Starred checkbox -->
+        <div class="flex items-center gap-2">
+          <input
+            type="checkbox"
+            id="is_starred"
+            v-model="projectForm.is_starred"
+            class="rounded border-gray-300"
+          />
+          <label for="is_starred" class="text-sm font-medium">Starred</label>
+        </div>
+        <InputError :message="projectForm.errors.is_starred" />
+      </form>
+    </template>
+
+    <template #footer>
+      <div class="flex justify-end gap-3">
+        <Button variant="outline" @click="closeNewProjectDialog"> Cancel </Button>
+        <Button @click="submitProjectForm" :disabled="projectForm.processing">
+          Create Project
+        </Button>
+      </div>
+    </template>
+  </Dialog>
+  <!-- Edit Project Dialog -->
+  <Dialog v-model="isEditProjectOpen">
+    <template #header>
+      <h2 class="text-xl font-bold text-gray-100">Edit Project</h2>
+      <p class="text-sm text-gray-400 mt-1">Modify the project details below</p>
+    </template>
+
+    <template #body>
+      <form @submit.prevent="submitEditProjectForm" class="space-y-4">
+        <!-- Title -->
+        <div>
+          <label class="block text-sm font-medium mb-1">Title</label>
+          <Input v-model="projectForm.title" placeholder="Project Title" class="w-full" />
+          <InputError :message="projectForm.errors.title" />
+        </div>
+
+        <!-- Client dropdown -->
+        <div>
+          <label class="block text-sm font-medium mb-1">Client</label>
+          <Dropdown
+            v-model="projectForm.client"
+            :options="clientOptions"
+            placeholder="Select a client"
+            class="w-full"
+          />
+          <InputError :message="projectForm.errors.client" />
+        </div>
+
+        <!-- Manager dropdown -->
+        <div>
+          <label class="block text-sm font-medium mb-1">Manager</label>
+          <Dropdown
+            v-model="projectForm.manager"
+            :options="managerOptions"
+            placeholder="Select a manager"
+            class="w-full"
+          />
+          <InputError :message="projectForm.errors.manager" />
+        </div>
+
+        <!-- Description -->
+        <div>
+          <label class="block text-sm font-medium mb-1">Description</label>
+          <textarea
+            v-model="projectForm.description"
+            placeholder="Describe the project..."
+            class="border rounded-lg p-3 text-sm w-full focus:ring-2 focus:ring-primary focus:outline-none transition"
+            rows="3"
+          ></textarea>
+          <InputError :message="projectForm.errors.description" />
+        </div>
+
+        <!-- Status -->
+        <div>
+          <label class="block text-sm font-medium mb-1">Status</label>
+          <Dropdown
+            v-model="projectForm.status"
+            :options="projectStatusOptions"
+            class="w-full"
+          />
+          <InputError :message="projectForm.errors.status" />
+        </div>
+
+        <!-- Starred checkbox -->
+        <div class="flex items-center gap-2">
+          <input
+            type="checkbox"
+            id="is_starred"
+            v-model="projectForm.is_starred"
+            class="rounded border-gray-300"
+          />
+          <label for="is_starred" class="text-sm font-medium">Starred</label>
+        </div>
+        <InputError :message="projectForm.errors.is_starred" />
+      </form>
+    </template>
+
+    <template #footer>
+      <div class="flex justify-end gap-3">
+        <Button variant="outline" @click="closeEditProjectDialog"> Cancel </Button>
+        <Button @click="submitEditProjectForm" :disabled="projectForm.processing">
+          Update Project
+        </Button>
+      </div>
+    </template>
+  </Dialog>
+  <!-- Project Details Dialog -->
+  <Dialog v-model="isProjectDetailsOpen" v-if="selectedProject">
+    <template #header>
+      <div class="flex justify-between items-center w-full">
+        <h2 class="text-lg font-semibold">
+          Project: {{ toTitleCase(selectedProject.title) }}
+        </h2>
+        <div v-if="selectedProject.is_starred">
+          <span
+            class="px-2 py-1 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-700"
+          >
+            ⭐
+          </span>
+        </div>
+      </div>
+    </template>
+
+    <template #body>
+      <div v-if="selectedProject" class="flex flex-col gap-4 text-sm p-1">
+        <!-- Basic Info -->
+        <div class="grid grid-cols-3">
+          <div>
+            <p class="font-medium text-gray-300">Client</p>
+            <p class="text-base">{{ selectedProject.client?.name || "—" }}</p>
+          </div>
+          <div>
+            <p class="font-medium text-gray-300">Manager</p>
+            <p class="text-base">{{ selectedProject.manager?.name || "—" }}</p>
+          </div>
+          <div>
+            <p class="font-medium text-gray-300">Status</p>
+            <span
+              class="px-2 py-1 rounded-full text-xs font-semibold inline-block mt-1"
+              :class="{
+                'bg-yellow-100 text-yellow-800': selectedProject.status === 'pending',
+                'bg-blue-100 text-blue-800': selectedProject.status === 'in_progress',
+                'bg-purple-100 text-purple-800': selectedProject.status === 'testing',
+                'bg-indigo-100 text-indigo-800': selectedProject.status === 'review',
+                'bg-green-100 text-green-800': selectedProject.status === 'completed',
+                'bg-red-100 text-red-800': selectedProject.status === 'cancelled',
+              }"
+            >
+              {{ toTitleCase(selectedProject.status.replace("_", " ")) }}
+            </span>
+          </div>
+        </div>
+
+        <!-- Task Statistics -->
+        <div>
+          <p class="font-medium text-gray-300 mb-2">Task Statistics</p>
+          <div class="grid grid-cols-4 gap-2">
+            <div class="bg-primary/10 p-3 rounded-lg text-center">
+              <p class="text-2xl font-bold">{{ projectStats.totalTasks }}</p>
+              <p class="text-xs text-gray-400">Total</p>
+            </div>
+            <div class="bg-yellow-500/10 p-3 rounded-lg text-center">
+              <p class="text-2xl font-bold text-yellow-400">
+                {{ projectStats.pendingTasks }}
+              </p>
+              <p class="text-xs text-gray-400">Pending</p>
+            </div>
+            <div class="bg-blue-500/10 p-3 rounded-lg text-center">
+              <p class="text-2xl font-bold text-blue-400">
+                {{ projectStats.runningTasks }}
+              </p>
+              <p class="text-xs text-gray-400">Running</p>
+            </div>
+            <div class="bg-green-500/10 p-3 rounded-lg text-center">
+              <p class="text-2xl font-bold text-green-400">
+                {{ projectStats.completedTasks }}
+              </p>
+              <p class="text-xs text-gray-400">Completed</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Description -->
+        <div v-if="selectedProject.description">
+          <p class="font-medium text-gray-300 mb-1">Description</p>
+          <Viewer :source="selectedProject.description" />
+        </div>
+      </div>
+    </template>
+
+    <template #footer>
+      <div class="flex justify-end gap-3">
+        <Button variant="outline" @click="closeProjectDetailsDialog"> Close </Button>
+        <Button
+          @click="
+            (selectedProject = selectedProject) => {
+              closeProjectDetailsDialog(selectedProject);
+              openEditProjectDialog(selectedProject);
+            }
+          "
+        >
+          Edit Project
+        </Button>
       </div>
     </template>
   </Dialog>
