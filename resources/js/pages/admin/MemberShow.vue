@@ -396,8 +396,8 @@ function closeNewTaskDialog() {
                       <div
                         class="w-full h-full flex flex-row items-center justify-between mb-1"
                       >
-                        <div class="flex items-center gap-2 text-sm">
-                          <p>{{ task.title }}</p>
+                        <div class="flex items-center gap-2 font-bold text-md">
+                          <p>{{ toTitleCase(task.title) }}</p>
                         </div>
                         <Edit
                           class="w-4 h-4 hover:bg-primary hover:cursor-pointer rounded-sm"
@@ -531,8 +531,8 @@ function closeNewTaskDialog() {
                       <div
                         class="w-full h-full flex flex-row items-center justify-between mb-1"
                       >
-                        <div class="flex items-center gap-2 text-sm">
-                          <p>{{ task.title }}</p>
+                        <div class="flex items-center gap-2 font-bold text-md">
+                          <p>{{ toTitleCase(task.title) }}</p>
                         </div>
                         <Edit
                           class="w-4 h-4 hover:bg-primary hover:cursor-pointer rounded-sm"
