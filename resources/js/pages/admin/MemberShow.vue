@@ -29,6 +29,7 @@ import {
 import { defineProps, ref, computed } from "vue";
 import Dropdown from "@/components/ui/select/Select.vue";
 import Picker from "@/components/ui/date/Picker.vue";
+import { watchEffect } from "vue";
 
 // Add the missing props
 const props = defineProps(["member", "names", "roles", "manager_of"]);
@@ -41,7 +42,7 @@ const href_ = "/admin/members/" + member.id.toString();
 const breadcrumbs = [{ title: title, href: href_ }];
 
 // Collapsibles
-const openProjectId = ref(null);
+const openProjectIds = ref([]);
 const openassigned_tasks = ref(true);
 const searchQuery = ref("");
 const isDetailsOpen = ref(false);
@@ -69,7 +70,13 @@ const filteredProjects = computed(() => {
 });
 
 const toggleProject = (id) => {
-  openProjectId.value = openProjectId.value === id ? null : id;
+  if (openProjectIds.value.includes(id)) {
+    // Close it
+    openProjectIds.value = openProjectIds.value.filter((pid) => pid !== id);
+  } else {
+    // Open it
+    openProjectIds.value.push(id);
+  }
 };
 
 const stats = computed(() => {
@@ -308,6 +315,13 @@ function closeNewTaskDialog() {
   isNewTaskDialogOpen.value = false;
   resetForm();
 }
+
+watchEffect(() => {
+  if (filteredProjects.value?.length) {
+    openProjectIds.value = filteredProjects.value.map((p) => p.id);
+  }
+});
+
 </script>
 
 <template>
@@ -346,15 +360,17 @@ function closeNewTaskDialog() {
         </div>
       </div>
 
-      <div class="flex-grow overflow-hidden mt-2">
+      <div class="flex-grow overflow-hidden">
         <div class="p-2">
           <div class="columns-1 sm:columns-2 lg:columns-3 gap-4">
             <div
               v-if="member.assigned_tasks && member.assigned_tasks.length"
-              class="break-inside-avoid mb-4 rounded-xl overflow-auto transition-all duration-200 hover:shadow-lg"
+              class="break-inside-avoid mb-4 rounded-xl overflow-auto transition-all duration-200 hover:shadow-lg border-2 border-purple-800"
             >
               <div
-                class="bg-primary/40 px-2 py-4.5 flex justify-between items-center hover:cursor-pointer hover:bg-primary/35 transition-colors duration-200"
+                class="bg-purple-800 px-2 py-4.5 flex justify-between items-center 
+                          hover:cursor-pointer hover:bg-purple-900 
+                          transition-colors duration-200"
                 @click="openassigned_tasks = !openassigned_tasks"
               >
                 <h2 class="text-lg font-bold">Assigned Tasks</h2>
@@ -384,7 +400,6 @@ function closeNewTaskDialog() {
                 <div
                   v-show="openassigned_tasks"
                   class="overflow-hidden"
-                  :style="openassigned_tasks ? 'max-height: 65vh; overflow-y: auto;' : ''"
                 >
                   <div class="flex flex-col mb-2">
                     <div
@@ -490,7 +505,7 @@ function closeNewTaskDialog() {
                     {{ (project.tasks || []).length }} tasks
                   </span>
                   <ChevronDown
-                    v-if="openProjectId === project.id"
+                    v-if="openProjectIds.includes(project.id)"
                     class="w-5 h-5 transition-transform duration-300 transform rotate-180"
                   />
                   <ChevronRight
@@ -510,10 +525,10 @@ function closeNewTaskDialog() {
                 leave-to-class="transform opacity-0 -translate-y-2"
               >
                 <div
-                  v-show="openProjectId === project.id"
+v-show="openProjectIds.includes(project.id)"
                   class="overflow-hidden"
                   :style="
-                    openProjectId === project.id
+                    openProjectIds === project.id
                       ? 'max-height: 65vh; overflow-y: auto;'
                       : ''
                   "
