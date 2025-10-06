@@ -26,7 +26,7 @@ class ProjectsModel extends Model
     // Relationship: project has many tasks
     public function tasks()
     {
-        return $this->hasMany(TasksModel::class, 'pr_id');
+        return $this->hasMany(TasksModel::class, 'pr_id')->with('assignee');
     }
 
     // Relationship: project belongs to a manager (User)

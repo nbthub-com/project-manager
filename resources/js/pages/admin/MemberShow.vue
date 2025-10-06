@@ -15,6 +15,16 @@ import {
   Search,
   ChevronDown,
   ChevronRight,
+  CircleDot,
+  Flag,
+  Dot,
+  Activity,
+  Loader2,
+  Loader2Icon,
+  LoaderPinwheel,
+  LoaderCircle,
+  LucideCircleDot,
+  LucideCircle,
 } from "lucide-vue-next";
 import { defineProps, ref, computed } from "vue";
 import Dropdown from "@/components/ui/select/Select.vue";
@@ -242,38 +252,41 @@ function submitForm() {
         resetForm();
       },
     });
-} else {
-  form.post("/tasks/create", {
-    onSuccess: (resp) => {
-      const newTask = resp?.props?.task || {
-        id: Date.now(), // fallback if nothing
-        title: form.title,
-        description: form.description,
-        to_id: form.to_id,
-        project_id: form.project_id,
-        status: form.status,
-        role_title: form.role_title,
-        priority: form.priority,
-        deadline: form.deadline,
-        project: props.manager_of.find(p => p.id === form.project_id) || null,
-      };
+  } else {
+    form.post("/tasks/create", {
+      onSuccess: (resp) => {
+        const newTask = resp?.props?.task || {
+          id: Date.now(), // fallback if nothing
+          title: form.title,
+          description: form.description,
+          to_id: form.to_id,
+          project_id: form.project_id,
+          status: form.status,
+          role_title: form.role_title,
+          priority: form.priority,
+          deadline: form.deadline,
+          project: props.manager_of.find((p) => p.id === form.project_id) || null,
+        };
 
-      // Push into assigned tasks
-      if (!member.assigned_tasks) member.assigned_tasks = [];
-      member.assigned_tasks.push(newTask);
+        // Push into assigned tasks
+        if (!member.assigned_tasks) member.assigned_tasks = [];
+        member.assigned_tasks.push(newTask);
 
-      // Also push into the right project.tasks if exists
-      const proj = (member.managed_projects || []).find(p => p.id === form.project_id);
-      if (proj) {
-        if (!proj.tasks) proj.tasks = [];
-        proj.tasks.push(newTask);
-      }
+        // Also push into the right project.tasks if exists
+        const proj = (member.managed_projects || []).find(
+          (p) => p.id === form.project_id
+        );
+        if (proj) {
+          if (!proj.tasks) proj.tasks = [];
+          proj.tasks.push(newTask);
+        }
 
-      isNewTaskDialogOpen.value = false;
-      resetForm();
-    },
-  });
-}}
+        isNewTaskDialogOpen.value = false;
+        resetForm();
+      },
+    });
+  }
+}
 
 function closeEditDialog() {
   isEditTaskOpen.value = false;
@@ -377,16 +390,76 @@ function closeNewTaskDialog() {
                     <div
                       v-for="task in member.assigned_tasks"
                       :key="task.id"
-                      class="py-2 px-2 w-full border-b-2 border-primary/30 flex justify-between items-center hover:bg-primary/10 transition-colors duration-150"
+                      class="p-2 w-full h-full border-b-2 border-primary/30 flex flex-col hover:bg-primary/10 transition-colors duration-150"
                       :class="task.status === 'cancelled' ? 'text-red-400' : 'text-white'"
                     >
-                      <p class="text-sm hover:cursor-pointer hover:underline">
-                        {{ task.title }}
-                      </p>
-                      <Edit
-                        class="w-4 h-4 hover:bg-primary hover:cursor-pointer rounded-sm"
-                        @click="openEditDialog(task)"
-                      />
+                      <div
+                        class="w-full h-full flex flex-row items-center justify-between mb-1"
+                      >
+                        <div class="flex items-center gap-2 text-sm">
+                          <p>{{ task.title }}</p>
+                        </div>
+                        <Edit
+                          class="w-4 h-4 hover:bg-primary hover:cursor-pointer rounded-sm"
+                          @click="openEditDialog(task)"
+                        />
+                      </div>
+                      <div
+                        class="flex flex-wrap items-center gap-2 text-xs text-gray-200"
+                      >
+                        <div class="flex items-center gap-1 text-gray-300">
+                          <span class="opacity-80">For</span>
+                          <span class="font-semibold text-gray-100">
+                            {{ toTitleCase(task.assignee?.name) || "Unassigned" }}
+                          </span>
+                        </div>
+                        <!-- Status Badge -->
+                        <div class="w-fit flex flex-row items-center gap-2">
+                          <div
+                            class="w-fit h-fit font-medium flex flex-row items-center gap-1"
+                            :class="{
+                              'text-red-500': task.status === 'cancelled',
+                              'text-green-400': task.status === 'completed',
+                              'text-blue-600': task.status === 'in_progress',
+                              'text-yellow-400': task.status === 'pending',
+                              'text-purple-600':
+                                task.status === 'testing' || task.status === 'review',
+                            }"
+                          >
+                            <LucideCircle
+                              class="w-3 h-3 font-extrabold"
+                              :class="{
+                                'fill-red-200': task.status === 'cancelled',
+                                'fill-green-300': task.status === 'completed',
+                                'fill-blue-300': task.status === 'in_progress',
+                                'fill-yellow-200': task.status === 'pending',
+                                'fill-purple-300':
+                                  task.status === 'testing' || task.status === 'review',
+                              }"
+                            />
+                            {{ toTitleCase(task.status.replace("_", " ")) }}
+                          </div>
+
+                          <!-- Priority Badge -->
+                          <div
+                            class="font-medium flex flex-row gap-1 items-center"
+                            :class="{
+                              'text-green-500': task.priority === 'low',
+                              'text-yellow-400': task.priority === 'medium',
+                              'text-red-400': task.priority === 'high',
+                            }"
+                          >
+                            <Flag
+                              class="w-3 h-3"
+                              :class="{
+                                'fill-green-300': task.priority === 'low',
+                                'fill-yellow-200': task.priority === 'medium',
+                                'fill-red-200': task.priority === 'high',
+                              }"
+                            />{{ toTitleCase(task.priority) }}
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -452,27 +525,76 @@ function closeNewTaskDialog() {
                     <div
                       v-for="task in project.tasks"
                       :key="task.id"
-                      class="py-2 px-2 w-full border-b-2 border-primary/30 flex justify-between items-center hover:bg-primary/10 transition-colors duration-150"
-                      :class="task.status === 'cancelled' ? 'text-red-400' : 'text-white'"
+                      class="p-2 w-full h-full border-b-2 border-primary/30 flex flex-col hover:bg-primary/10 transition-colors duration-150"
+                      :class="task.status === 'cancelled' ? 'text-red-300' : 'text-white'"
                     >
-                      <div class="flex items-center gap-2">
-                        <div
-                          class="w-2 h-2 rounded-full"
-                          :class="{
-                            'bg-red-500': task.status === 'cancelled',
-                            'bg-green-500': task.status === 'completed',
-                            'bg-blue-500': task.status === 'in_progress',
-                            'bg-yellow-500': task.status === 'pending',
-                            'bg-purple-500':
-                              task.status === 'testing' || task.status === 'review',
-                          }"
-                        ></div>
-                        <p class="text-sm">{{ task.title }}</p>
+                      <div
+                        class="w-full h-full flex flex-row items-center justify-between mb-1"
+                      >
+                        <div class="flex items-center gap-2 text-sm">
+                          <p>{{ task.title }}</p>
+                        </div>
+                        <Edit
+                          class="w-4 h-4 hover:bg-primary hover:cursor-pointer rounded-sm"
+                          @click="openEditDialog(task)"
+                        />
                       </div>
-                      <Edit
-                        class="w-4 h-4 hover:bg-primary hover:cursor-pointer rounded-sm"
-                        @click="openEditDialog(task)"
-                      />
+                      <div
+                        class="flex flex-wrap items-center gap-2 text-xs text-gray-200"
+                      >
+                        <div class="flex items-center gap-1 text-gray-300">
+                          <span class="opacity-80">For</span>
+                          <span class="font-semibold text-gray-100">
+                            {{ toTitleCase(task.assignee?.name) || "Unassigned" }}
+                          </span>
+                        </div>
+                        <!-- Status Badge -->
+                        <div class="w-fit flex flex-row items-center gap-2">
+                          <div
+                            class="w-fit h-fit font-medium flex flex-row items-center gap-1"
+                            :class="{
+                              'text-red-500': task.status === 'cancelled',
+                              'text-green-400': task.status === 'completed',
+                              'text-blue-600': task.status === 'in_progress',
+                              'text-yellow-400': task.status === 'pending',
+                              'text-purple-600':
+                                task.status === 'testing' || task.status === 'review',
+                            }"
+                          >
+                            <LucideCircle
+                              class="w-3 h-3 font-extrabold"
+                              :class="{
+                                'fill-red-200': task.status === 'cancelled',
+                                'fill-green-300': task.status === 'completed',
+                                'fill-blue-300': task.status === 'in_progress',
+                                'fill-yellow-200': task.status === 'pending',
+                                'fill-purple-300':
+                                  task.status === 'testing' || task.status === 'review',
+                              }"
+                            />
+                            {{ toTitleCase(task.status.replace("_", " ")) }}
+                          </div>
+
+                          <!-- Priority Badge -->
+                          <div
+                            class="font-medium flex flex-row gap-1 items-center"
+                            :class="{
+                              'text-green-500': task.priority === 'low',
+                              'text-yellow-400': task.priority === 'medium',
+                              'text-red-400': task.priority === 'high',
+                            }"
+                          >
+                            <Flag
+                              class="w-3 h-3"
+                              :class="{
+                                'fill-green-300': task.priority === 'low',
+                                'fill-yellow-200': task.priority === 'medium',
+                                'fill-red-200': task.priority === 'high',
+                              }"
+                            />{{ toTitleCase(task.priority) }}
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
                   <div v-else class="text-sm italic px-2 py-2 text-center">
