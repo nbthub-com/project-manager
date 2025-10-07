@@ -25,7 +25,7 @@ const page = usePage()
 
 const props = defineProps({
   projects: Object,
-  clients: Array, // will now be [{id, name}]
+  clients: Array,
   managers: Array,
   filters: Object,
 });

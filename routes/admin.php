@@ -9,6 +9,7 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->group(function () {
     // Views
     Route::get('/', [AdminController::class, 'index'])->name('dashboard.admin');
     Route::get('/members', [AdminController::class, 'view_mems'])->name('members.view');
+    Route::put('/members', [AdminController::class, 'update_member'])->name('members.update');
 
     // Form handlers
     Route::get('/members', [AdminController::class, 'view_mems'])->name('members.view');

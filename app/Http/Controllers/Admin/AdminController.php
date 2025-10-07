@@ -280,4 +280,26 @@ class AdminController extends Controller
         
         return response()->json($users);
     }
+    public function update_member(Request $request)
+    {
+        $validated = $request->validate([
+            'id' => 'required|exists:users,id',
+            'name' => 'required|min:3',
+            'email' => 'required|email|unique:users,email,'.$request->id,
+            'role' => 'required|in:user,client',
+            'password' => 'nullable|min:6|confirmed',
+        ]);
+
+        $user = User::findOrFail($validated['id']);
+        $updateData = [
+            'name' => $validated['name'],
+            'email' => $validated['email'],
+            'role' => $validated['role'],
+        ];
+        if (!empty($validated['password'])) {
+            $updateData['password'] = Hash::make($validated['password']);
+        }
+        $user->update($updateData);
+        return redirect()->back()->with('success', 'Member updated successfully!');
+    }
 }

@@ -115,8 +115,8 @@ const form = useForm({
   role: "user",
 });
 
-function openView(id){
-  router.visit(`/admin/members/${id}`)
+function openView(id) {
+  router.visit(`/admin/members/${id}`);
 }
 
 // create
@@ -138,7 +138,37 @@ function deleteUser(id) {
   }
 }
 
-const openTask = ref();
+// Add this after the existing form declarations
+const isEditDialogOpen = ref(false);
+const editForm = useForm({
+  id: null,
+  name: "",
+  email: "",
+  role: "user",
+  password: "",
+  password_confirmation: "",
+});
+
+// Add this function to open the edit dialog
+function openEditDialog(user) {
+  isEditDialogOpen.value = true;
+  editForm.id = user.id;
+  editForm.name = user.name;
+  editForm.email = user.email;
+  editForm.role = user.is_client ? "client" : "user";
+  editForm.password = "";
+  editForm.password_confirmation = "";
+}
+
+// Add this function to submit the edit form
+function submitEditForm() {
+  editForm.put("/admin/members", {
+    onSuccess: () => {
+      isEditDialogOpen.value = false;
+      editForm.reset();
+    },
+  });
+}
 </script>
 
 <template>
@@ -279,7 +309,10 @@ const openTask = ref();
 
           <!-- Footer -->
           <div class="mt-4 flex justify-end gap-1 border-t border-white/20 pt-2">
-            <Edit class="w-5 h-5 text-white cursor-pointer hover:text-gray-200" />
+            <Edit
+              class="w-5 h-5 text-white cursor-pointer hover:text-gray-200"
+              @click="openEditDialog(user)"
+            />
           </div>
         </div>
       </div>
@@ -409,6 +442,53 @@ const openTask = ref();
         <template #footer>
           <Button @click="isDialogOpen = false"> Cancel </Button>
           <Button @click="submitForm"> Save </Button>
+        </template>
+      </Dialog>
+      <!-- Edit Member Dialog -->
+      <Dialog v-model="isEditDialogOpen">
+        <template #header>
+          <h2 class="text-lg font-semibold">Edit Member</h2>
+        </template>
+        <template #body>
+          <form @submit.prevent="submitEditForm" class="flex flex-col gap-2">
+            <Label>Name</Label>
+            <Input v-model="editForm.name" placeholder="Name" />
+            <InputError :message="editForm.errors.name" class="text-red-500" />
+
+            <Label>Email</Label>
+            <Input v-model="editForm.email" placeholder="Email" />
+            <InputError :message="editForm.errors.email" class="text-red-500" />
+
+            <Label>Role</Label>
+            <Dropdown
+              v-model="editForm.role"
+              :options="[
+                { label: 'System Member', value: 'user' },
+                { label: 'System Client', value: 'client' },
+              ]"
+              placeholder="Role"
+            />
+            <InputError :message="editForm.errors.role" class="text-red-500" />
+
+            <Label>Password (leave blank to keep current)</Label>
+            <Input type="password" v-model="editForm.password" placeholder="Password" />
+            <InputError :message="editForm.errors.password" class="text-red-500" />
+
+            <Label>Confirm Password</Label>
+            <Input
+              type="password"
+              v-model="editForm.password_confirmation"
+              placeholder="Confirm Password"
+            />
+            <InputError
+              :message="editForm.errors.password_confirmation"
+              class="text-red-500"
+            />
+          </form>
+        </template>
+        <template #footer>
+          <Button @click="isEditDialogOpen = false"> Cancel </Button>
+          <Button @click="submitEditForm"> Save </Button>
         </template>
       </Dialog>
     </div>
