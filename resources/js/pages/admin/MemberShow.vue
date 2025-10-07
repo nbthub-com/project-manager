@@ -5,7 +5,7 @@ import Input from "@/components/ui/input/Input.vue";
 import Dialog from "@/components/ui/simpledialog/Dialog.vue";
 import AppLayout from "@/layouts/AppLayout.vue";
 import { toTitleCase } from "@/lib/utils";
-import { Head, useForm, router } from "@inertiajs/vue3";
+import { Head, useForm, router, usePage } from "@inertiajs/vue3";
 import {
   Edit,
   List,
@@ -25,12 +25,14 @@ import {
   LoaderCircle,
   LucideCircleDot,
   LucideCircle,
+  PencilLine,
 } from "lucide-vue-next";
 import { defineProps, ref, computed } from "vue";
 import Dropdown from "@/components/ui/select/Select.vue";
 import Picker from "@/components/ui/date/Picker.vue";
 import { watchEffect } from "vue";
 import Viewer from "@/components/ui/md/viewer.vue";
+import axios from "axios";
 
 // Add the missing props
 const props = defineProps([
@@ -43,7 +45,8 @@ const props = defineProps([
 ]);
 
 const member = props.member;
-
+const page = usePage();
+const user = page.props.auth.user;
 const title =
   toTitleCase(member.name) + " (" + (member.role === "user" ? "Member" : "Client") + ")";
 const href_ = "/admin/members/" + member.id.toString();
@@ -565,6 +568,45 @@ const projectStats = computed(() => {
     completedTasks,
   };
 });
+
+const isNotesDialogOpen = ref(false);
+const selected = ref();
+const note = ref("");
+const isTaskViewDialogOpen = ref(false);
+
+function openNotesProjectDialog(project) {
+  note.value = "";
+  isNotesDialogOpen.value = true;
+  selected.value = project;
+  mode.value = "proj";
+}
+
+function openTaskViewDialog(task) {
+  note.value = "";
+  isTaskViewDialogOpen.value = true;
+  selected.value = task;
+  mode.value = "task";
+}
+
+const mode = ref("");
+
+async function addNote() {
+  const content = note.value.trim();
+  if (!content) return;
+  try {
+    const response = await axios.post("/notes", {
+      content,
+      context: mode.value,
+      context_id: selected.value.id,
+      member_id: user.id,
+    });
+    selected.value.notes.push(response.data.note);
+    note.value = ""; // reset textarea after submit
+  } catch (error) {
+    console.error("Error adding note:", error);
+    alert("Failed to add note. Please try again.");
+  }
+}
 </script>
 
 <template>
@@ -653,7 +695,10 @@ const projectStats = computed(() => {
                       <div
                         class="w-full h-full flex flex-row items-center justify-between mb-1"
                       >
-                        <div class="flex items-center gap-2 font-bold text-md">
+                        <div
+                          class="flex items-center gap-2 hover:underline hover:cursor-pointer font-bold text-md"
+                          @click="openTaskViewDialog(task)"
+                        >
                           <p>{{ toTitleCase(task.title) }}</p>
                         </div>
                         <Edit
@@ -750,8 +795,12 @@ const projectStats = computed(() => {
                     {{ (project.tasks || []).length }} tasks
                   </span>
                   <Edit
-                    class="w-4 h-4 mr-2 hover:bg-primary/20 hover:cursor-pointer rounded-sm"
+                    class="w-5 h-5 mr-2 hover:bg-secondary hover:cursor-pointer rounded-sm"
                     @click.stop="openEditProjectDialog(project)"
+                  />
+                  <PencilLine
+                    class="w-5 h-5 hover:bg-secondary hover:cursor-pointer rounded-sm"
+                    @click.stop="openNotesProjectDialog(project)"
                   />
                   <ChevronDown
                     v-if="openProjectIds.includes(project.id)"
@@ -773,15 +822,7 @@ const projectStats = computed(() => {
                 leave-from-class="transform opacity-100 translate-y-0"
                 leave-to-class="transform opacity-0 -translate-y-2"
               >
-                <div
-                  v-show="openProjectIds.includes(project.id)"
-                  class="overflow-hidden"
-                  :style="
-                    openProjectIds.includes(project.id)
-                      ? 'max-height: 65vh; overflow-y: auto;'
-                      : ''
-                  "
-                >
+                <div v-show="openProjectIds.includes(project.id)" class="overflow-hidden">
                   <div
                     v-if="project.tasks && project.tasks.length"
                     class="flex flex-col mb-2"
@@ -795,7 +836,10 @@ const projectStats = computed(() => {
                       <div
                         class="w-full h-full flex flex-row items-center justify-between mb-1"
                       >
-                        <div class="flex items-center gap-2 font-bold text-md">
+                        <div
+                          class="flex items-center gap-2 hover:underline hover:cursor-pointer font-bold text-md"
+                          @click="openTaskViewDialog(task)"
+                        >
                           <p>{{ toTitleCase(task.title) }}</p>
                         </div>
                         <Edit
@@ -1432,6 +1476,176 @@ const projectStats = computed(() => {
         >
           Edit Project
         </Button>
+      </div>
+    </template>
+  </Dialog>
+  <Dialog v-model="isNotesDialogOpen">
+    <template #header>
+      <div class="text-lg font-semibold">
+        <div v-if="mode === 'proj'">
+          Notes
+          <span class="text-sm font-extralight">({{ toTitleCase(selected.title) }})</span>
+        </div>
+        <div v-else>
+          Notes
+          <span class="text-sm font-extralight"
+            >({{ toTitleCase(selected.title) }} of
+            {{ toTitleCase(selected.project.title) }}</span
+          >)
+        </div>
+      </div></template
+    >
+    <template #body>
+      <div
+        v-if="selected.notes?.length > 0"
+        class="flex flex-col gap-2 h-full overflow-y-auto pr-1"
+      >
+        <div
+          v-for="note in selected.notes"
+          :key="note.id"
+          class="p-2 rounded-lg bg-secondary border border-indigo-950 shadow-sm hover:shadow-md transition"
+        >
+          <p class="text-sm text-white leading-snug">{{ note.content }}</p>
+          <div class="w-full justify-between flex flex-row h-fit gap-2">
+            <p class="text-xs text-gray-400">— {{ note.member.name }}</p>
+          </div>
+        </div>
+      </div>
+      <div v-else class="text-center text-sm italic text-gray-500 py-3">
+        No notes yet...
+      </div>
+    </template>
+    <template #footer>
+      <div class="flex gap-2 items-end w-full h-full">
+        <textarea
+          v-model="note"
+          placeholder="Your note here..."
+          class="flex-1 text-sm h-full max-h-80 p-1.5 rounded-md bg-white/10 text-white placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-ring min-h-[33px]"
+        ></textarea>
+        <Button
+          size="xs"
+          class="px-2 py-2 flex items-center gap-1 rounded-md shadow-sm transition text-white text-xs h-8"
+          @click="addNote"
+        >
+          <Plus class="w-3 h-3" /> Add
+        </Button>
+      </div>
+    </template>
+  </Dialog>
+  <Dialog v-model="isTaskViewDialogOpen">
+    <template #header>
+      <div class="text-lg font-semibold">Task: {{ toTitleCase(selected.title) }}</div>
+    </template>
+    <template #body>
+      <div class="flex flex-row gap-3 justify-between text-gray-200">
+        <div class="w-fit h-fit flex flex-col">
+          <span class="opacity-80 text-sm">For</span>
+          <span class="font-semibold text-gray-100">
+            {{ toTitleCase(selected.assignee?.name) || "Unassigned" }}
+          </span>
+        </div>
+        <div class="w-fit h-fit flex flex-col">
+          <span class="opacity-80 text-sm">Role</span>
+          <span class="font-semibold text-gray-100 text-md">
+            {{ toTitleCase(selected.role_title) || "Unassigned" }}
+          </span>
+        </div>
+        <div class="w-fit h-fit flex flex-col">
+          <span class="opacity-80 text-sm">Deadline</span>
+          <span class="font-semibold text-gray-100">
+            {{
+              selected.deadline
+                ? new Date(selected.deadline).toLocaleDateString()
+                : "Unassigned"
+            }}
+          </span>
+        </div>
+        <div>
+          <span class="opacity-80 text-sm">Status</span>
+          <div
+            class="w-fit h-fit font-medium flex flex-row items-center gap-1"
+            :class="{
+              'text-red-500': selected.status === 'cancelled',
+              'text-green-400': selected.status === 'completed',
+              'text-blue-600': selected.status === 'in_progress',
+              'text-yellow-400': selected.status === 'pending',
+              'text-purple-600':
+                selected.status === 'testing' || selected.status === 'review',
+            }"
+          >
+            <LucideCircle
+              class="w-3 h-3 font-extrabold"
+              :class="{
+                'fill-red-200': selected.status === 'cancelled',
+                'fill-green-300': selected.status === 'completed',
+                'fill-blue-300': selected.status === 'in_progress',
+                'fill-yellow-200': selected.status === 'pending',
+                'fill-purple-300':
+                  selected.status === 'testing' || selected.status === 'review',
+              }"
+            />
+            {{ toTitleCase(selected.status.replace("_", " ")) }}
+          </div>
+        </div>
+        <div>
+          <span class="opacity-80 text-sm">Priority</span>
+          <div
+            class="font-medium flex flex-row gap-1 items-center"
+            :class="{
+              'text-green-500': selected.priority === 'low',
+              'text-yellow-400': selected.priority === 'medium',
+              'text-red-400': selected.priority === 'high',
+            }"
+          >
+            <Flag
+              class="w-3 h-3"
+              :class="{
+                'fill-green-300': selected.priority === 'low',
+                'fill-yellow-200': selected.priority === 'medium',
+                'fill-red-200': selected.priority === 'high',
+              }"
+            />{{ toTitleCase(selected.priority) }}
+          </div>
+        </div>
+      </div>
+      <div>
+        <span class="opacity-80 text-sm">Description</span>
+        <Viewer :source="selected.description" />
+      </div>
+      <div>
+      <div
+        v-if="selected.notes?.length > 0"
+        class="flex flex-col gap-2 max-h-[500px] overflow-y-auto pr-1"
+      >
+        <span class="opacity-80 text-sm">Notes</span>
+        <div
+          v-for="note in selected.notes"
+          :key="note.id"
+          class="p-2 rounded-lg bg-secondary border border-indigo-950 shadow-sm hover:shadow-md transition"
+        >
+          <p class="text-sm text-white leading-snug">{{ note.content }}</p>
+          <div class="w-full justify-between flex flex-row h-fit gap-2">
+            <p class="text-xs text-gray-400">— {{ note.member.name }}</p>
+          </div>
+        </div>
+      </div>
+      <div v-else class="text-center text-sm italic text-gray-500 py-3">
+        No notes yet...
+      </div>
+      <div class="flex gap-2 mt-4 items-end w-full h-full">
+        <textarea
+          v-model="note"
+          placeholder="Your note here..."
+          class="flex-1 text-sm h-full max-h-80 p-1.5 rounded-md bg-white/10 text-white placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-ring min-h-[33px]"
+        ></textarea>
+        <Button
+          size="xs"
+          class="px-2 py-2 flex items-center gap-1 rounded-md shadow-sm transition text-white text-xs h-8"
+          @click="addNote"
+        >
+          <Plus class="w-3 h-3" /> Add
+        </Button>
+      </div>
       </div>
     </template>
   </Dialog>
