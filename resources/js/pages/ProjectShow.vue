@@ -473,7 +473,7 @@ const openFilter = ref(false);
               <Button
                 size="xs"
                 class="px-2 py-2 flex items-center gap-1 rounded-md shadow-sm transition text-white text-xs"
-                @click="addNote"
+                @click="addNote('task')"
               >
                 <Plus class="w-3 h-3" /> Add
               </Button>
@@ -655,7 +655,7 @@ const openFilter = ref(false);
           <Button
             size="xs"
             class="px-2 py-2 flex items-center gap-1 rounded-md shadow-sm transition text-white text-xs h-8"
-            @click="addNote((context = 'proj'))"
+            @click="addNote('proj')"
           >
             <Plus class="w-3 h-3" /> Add
           </Button>
