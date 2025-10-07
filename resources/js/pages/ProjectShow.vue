@@ -33,7 +33,7 @@ import { usePage } from "@inertiajs/vue3";
 import axios from "axios";
 import Select from "@/components/ui/select/Select.vue";
 
-const props = defineProps(["project"]);
+const props = defineProps(["project", "names"]);
 const user = usePage().props.auth.user;
 const breadcrumbs = [
   {
@@ -93,6 +93,8 @@ function openEdit(task) {
   taskForm.priority = task.priority;
   taskForm.status = task.status;
   taskForm.deadline = task.deadline;
+  taskForm.to_id = task.assignee ? task.assignee.id : null;
+  taskForm.role_title = task.role_title || "not-assigned";
 
   editTask.value = task;
   isViewDialogOpen.value = false;
@@ -255,7 +257,7 @@ const openFilter = ref(false);
             >
               <div
                 v-if="openFilter"
-                class="absolute mt-2 w-[100px] bg-gray-900 border border-gray-700 rounded-lg shadow-lg p-3 z-50 flex flex-col gap-3"
+                class="absolute mt-2 w-fit bg-gray-900 border border-gray-700 rounded-lg shadow-lg p-3 z-50 flex flex-col gap-3"
               >
                 <Dropdown
                   v-model="filterPriority"
@@ -350,7 +352,7 @@ const openFilter = ref(false);
       <template #header>
         <div class="flex items-center justify-between w-full">
           <div class="flex items-center gap-2">
-            <h2 class="text-xl font-bold flex items-center gap-2 capitalize">
+            <h2 class="text-xl font-bold flex items-center gap-2 capitalize truncate">
               {{ project.title }}
             </h2>
             <span
@@ -371,7 +373,15 @@ const openFilter = ref(false);
       </template>
       <template #body>
         <div class="w-full h-full">
-          <Viewer :source="project.description" />
+          <div v-if="user.role !== 'client'">
+            <span class="text-sm text-gray-300">Managed by: </span>
+            {{ project.manager.name }}
+          </div>
+          <span class="text-sm text-gray-300">Description</span>
+          <Viewer v-if="project.description?.length > 0" :source="project.description" />
+          <div v-else class="px-3 py-1 italic text-gray-400 text-xs">
+            No Description provided!
+          </div>
           <div class="h-4" />
         </div>
       </template>
@@ -381,7 +391,7 @@ const openFilter = ref(false);
       <template #header>
         <div class="flex items-center justify-between w-full">
           <div class="flex items-center gap-2">
-            <h2 class="text-xl font-bold flex items-center gap-2 capitalize">
+            <h2 class="text-xl font-bold flex items-center gap-2 capitalize truncate">
               {{ viewTask.title }}
             </h2>
             <span
@@ -515,30 +525,61 @@ const openFilter = ref(false);
               {{ taskForm.errors.description }}
             </div>
           </div>
-
-          <!-- Priority -->
-          <div>
-            <label class="block text-sm font-medium mb-1">Priority</label>
-            <Dropdown
-              v-model="taskForm.priority"
-              :options="priorityOptions"
-              placeholder="Select Priority"
-            />
-            <div v-if="taskForm.errors.priority" class="text-red-500 text-xs mt-1">
-              {{ taskForm.errors.priority }}
+          <div class="grid grid-cols-2 gap-2">
+            <div v-if="user.role !== 'client'">
+              <label class="block text-sm font-medium mb-1">Assignee</label>
+              <Dropdown
+                v-model="taskForm.to_id"
+                :options="names"
+                placeholder="Select Assignee"
+              />
+              <div v-if="taskForm.errors.to_id" class="text-red-500 text-xs mt-1">
+                {{ taskForm.errors.to_id }}
+              </div>
             </div>
-          </div>
+            <!-- Priority -->
+            <div>
+              <label class="block text-sm font-medium mb-1">Priority</label>
+              <Dropdown
+                v-model="taskForm.priority"
+                :options="priorityOptions"
+                placeholder="Select Priority"
+              />
+              <div v-if="taskForm.errors.priority" class="text-red-500 text-xs mt-1">
+                {{ taskForm.errors.priority }}
+              </div>
+            </div>
 
-          <!-- Status -->
-          <div>
-            <label class="block text-sm font-medium mb-1">Status</label>
-            <Dropdown
-              v-model="taskForm.status"
-              :options="statusOptions"
-              placeholder="Select Status"
-            />
-            <div v-if="taskForm.errors.status" class="text-red-500 text-xs mt-1">
-              {{ taskForm.errors.status }}
+            <!-- Status -->
+            <div>
+              <label class="block text-sm font-medium mb-1">Status</label>
+              <Dropdown
+                v-model="taskForm.status"
+                :options="statusOptions"
+                placeholder="Select Status"
+              />
+              <div v-if="taskForm.errors.status" class="text-red-500 text-xs mt-1">
+                {{ taskForm.errors.status }}
+              </div>
+            </div>
+
+            <div v-if="user.role !== 'client'">
+              <label class="block text-sm font-medium mb-1">Role</label>
+              <Dropdown
+                v-model="taskForm.role_title"
+                :options="[
+                  { label: 'Frontend Developer', value: 'frontend-developer' },
+                  { label: 'Backend Developer', value: 'backend-developer' },
+                  { label: 'Fullstack Developer', value: 'fullstack-developer' },
+                  { label: 'Tester', value: 'tester' },
+                  { label: 'Designer', value: 'designer' },
+                  { label: 'DevOps Engineer', value: 'devops-engineer' },
+                ]"
+                placeholder="Select Role"
+              />
+              <div v-if="taskForm.errors.role_title" class="text-red-500 text-xs mt-1">
+                {{ taskForm.errors.role_title }}
+              </div>
             </div>
           </div>
 
@@ -593,27 +634,70 @@ const openFilter = ref(false);
             </div>
           </div>
 
-          <!-- Priority -->
-          <div>
-            <label class="block text-sm font-medium mb-1">Priority</label>
-            <Dropdown
-              v-model="taskForm.priority"
-              :options="priorityOptions"
-              placeholder="Select Priority"
-            />
-            <div v-if="taskForm.errors.priority" class="text-red-500 text-xs mt-1">
-              {{ taskForm.errors.priority }}
+          <div class="grid grid-cols-2 gap-2">
+            <div v-if="user.role !== 'client'">
+              <label class="block text-sm font-medium mb-1">Assignee</label>
+              <Dropdown
+                v-model="taskForm.to_id"
+                :options="names"
+                placeholder="Select Assignee"
+              />
+              <div v-if="taskForm.errors.to_id" class="text-red-500 text-xs mt-1">
+                {{ taskForm.errors.to_id }}
+              </div>
             </div>
-          </div>
+            <!-- Priority -->
+            <div>
+              <label class="block text-sm font-medium mb-1">Priority</label>
+              <Dropdown
+                v-model="taskForm.priority"
+                :options="priorityOptions"
+                placeholder="Select Priority"
+              />
+              <div v-if="taskForm.errors.priority" class="text-red-500 text-xs mt-1">
+                {{ taskForm.errors.priority }}
+              </div>
+            </div>
 
-          <!-- Deadline -->
-          <div>
-            <label class="block text-sm font-medium mb-1">Deadline</label>
-            <Picker v-model="taskForm.deadline" />
-            <div v-if="taskForm.errors.deadline" class="text-red-500 text-xs mt-1">
-              {{ taskForm.errors.deadline }}
+            <!-- Status -->
+            <div>
+              <label class="block text-sm font-medium mb-1">Status</label>
+              <Dropdown
+                v-model="taskForm.status"
+                :options="statusOptions"
+                placeholder="Select Status"
+              />
+              <div v-if="taskForm.errors.status" class="text-red-500 text-xs mt-1">
+                {{ taskForm.errors.status }}
+              </div>
+            </div>
+
+            <div v-if="user.role !== 'client'">
+              <label class="block text-sm font-medium mb-1">Role</label>
+              <Dropdown
+                v-model="taskForm.role_title"
+                :options="[
+                  { label: 'Frontend Developer', value: 'frontend-developer' },
+                  { label: 'Backend Developer', value: 'backend-developer' },
+                  { label: 'Fullstack Developer', value: 'fullstack-developer' },
+                  { label: 'Tester', value: 'tester' },
+                  { label: 'Designer', value: 'designer' },
+                  { label: 'DevOps Engineer', value: 'devops-engineer' },
+                ]"
+                placeholder="Select Role"
+              />
+              <div v-if="taskForm.errors.role_title" class="text-red-500 text-xs mt-1">
+                {{ taskForm.errors.role_title }}
+              </div>
             </div>
           </div>
+            <div>
+              <label class="block text-sm font-medium mb-1">Deadline</label>
+              <Picker v-model="taskForm.deadline" />
+              <div v-if="taskForm.errors.deadline" class="text-red-500 text-xs mt-1">
+                {{ taskForm.errors.deadline }}
+              </div>
+            </div>
         </form>
       </template>
 

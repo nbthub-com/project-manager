@@ -220,8 +220,7 @@ function deleteProject(id) {
 }
 
 function openViewDialog(project) {
-  viewProject.value = project;
-  isViewDialogOpen.value = true;
+  router.visit(`/admin/projects/${project.id}`)
 }
 
 // Helper function to format status text

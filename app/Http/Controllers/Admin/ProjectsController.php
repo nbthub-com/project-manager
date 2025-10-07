@@ -70,25 +70,36 @@ class ProjectsController extends Controller
             ]),
         ]);
     }
-    public function viewProject($id) {
-        $project = ProjectsModel::with([
-            'manager:id,name,email,role',
-            'client:id,name,email,role',
-            'notes.member:id,name,email,role',
-            'tasks' => function ($q) {
-                $q->with([
-                    'manager:id,name,email,role',
-                    'assignee:id,name,email,role',
-                    'notes.member:id,name,email,role'
-                ]);
-            }
-        ])->findOrFail($id);
+public function viewProject($id) {
+    $project = ProjectsModel::with([
+        'manager:id,name,email,role',
+        'client:id,name,email,role',
+        'notes.member:id,name,email,role',
+        'tasks' => function ($q) {
+            $q->with([
+                'manager:id,name,email,role',
+                'assignee:id,name,email,role',
+                'notes.member:id,name,email,role'
+            ]);
+        }
+    ])->findOrFail($id);
+    
+    // Fix: Get the actual collection of users, not just the query builder
+    $names = User::where('role', '!=', 'client')
+                ->select('id', 'name', 'email')
+                ->get()
+                ->map(function ($user) {
+                    return [
+                        'label' => $user->name,
+                        'value' => $user->id
+                    ];
+                });
 
-        return Inertia::render('ProjectShow', [
-            'project' => $project
-        ]);
-    }
-
+    return Inertia::render('ProjectShow', [
+        'project' => $project,
+        'names'   => $names
+    ]);
+}
     public function create(Request $request)
     {
         $validated = $request->validate([
