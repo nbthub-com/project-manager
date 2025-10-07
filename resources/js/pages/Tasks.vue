@@ -272,9 +272,18 @@ function editTask(task) {
 
 // delete
 function deleteTask(id) {
-  if (confirm("Are you sure you want to delete this task?")) {
+  if (
+    confirm("Are you sure you want to delete this task? This action cannot be undone.")
+  ) {
     router.delete(`/tasks/delete/${id}`, {
       preserveScroll: true,
+      onSuccess: () => {
+        // Optional: Show success message
+      },
+      onError: (errors) => {
+        console.error("Error deleting task:", errors);
+        alert("Failed to delete task: " + (errors.message || "Unknown error"));
+      },
     });
   }
 }
@@ -368,7 +377,15 @@ const projectOptions = computed(() => {
 });
 
 function isManager(task) {
-  return props.manager_of.some((project) => project.id === task.project_id);
+  // Find the project in the manager_of list that matches the task's project_id
+  const project = props.manager_of.find((p) => p.id === task.project_id);
+  // Return true if project exists and the current user is the manager of that project
+  return project && project.manager_id === user.id;
+}
+
+// Add a new function to check if user can delete the task
+function canDeleteTask(task) {
+  return role === "admin" || isManager(task);
 }
 
 // Status options for assignees (only pending, in_progress, completed)
@@ -642,7 +659,7 @@ async function deleteNote(id) {
                   </span>
                 </h3>
                 <button
-                  v-if="role !== 'client'"
+                  v-if="canDeleteTask(task)"
                   class="text-red-200 hover:text-red-400 cursor-pointer"
                   @click="deleteTask(task.id)"
                 >
@@ -834,151 +851,151 @@ async function deleteNote(id) {
       </template>
     </Dialog>
 
-  <Dialog v-model="isDialogOpen">
-    <!-- Header -->
-    <template #header>
-      <h2 class="text-xl font-bold text-gray-800 dark:text-gray-100">
-        {{ isEditMode ? "Update Task" : "Assign New Task" }}
-      </h2>
-      <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
-        {{
-          isEditMode
-            ? "Modify the task details below"
-            : "Fill in details to create a new task"
-        }}
-      </p>
-    </template>
-    <!-- Body -->
-    <template #body>
-      <form @submit.prevent="submitForm" class="flex flex-col gap-4">
-        <!-- Title -->
-        <div>
-          <label class="block text-sm font-medium mb-1">Title</label>
-          <Input v-model="form.title" placeholder="Task Title" class="w-full" />
-          <InputError :message="form.errors.title" />
-        </div>
-        <!-- Description -->
-        <div>
-          <label class="text-sm font-medium mb-1 flex flex-row gap-2 items-baseline"
-            >Description
-            <p class="text-xs font-extralight">(markdown & tailwind supported!)</p>
-          </label>
-          <textarea
-            v-model="form.description"
-            placeholder="Describe the task..."
-            class="border rounded-lg p-3 text-sm w-full focus:ring-2 focus:ring-primary focus:outline-none transition"
-            rows="3"
-          ></textarea>
-          <InputError :message="form.errors.description" />
-        </div>
-        
-        <!-- Modified section for Assignee and Project -->
-        <div class="w-full flex flex-row p-1 gap-2">
-          <!-- Assignee field - hidden for clients -->
-          <div class="w-1/2" v-if="user.role !== 'client'">
-            <label class="block text-sm font-medium mb-1">Assignee</label>
-            <Dropdown
-              v-model="form.to_id"
-              :options="
-                props.names.map((user) => ({ label: user.name, value: user.id }))
+    <Dialog v-model="isDialogOpen">
+      <!-- Header -->
+      <template #header>
+        <h2 class="text-xl font-bold text-gray-800 dark:text-gray-100">
+          {{ isEditMode ? "Update Task" : "Assign New Task" }}
+        </h2>
+        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
+          {{
+            isEditMode
+              ? "Modify the task details below"
+              : "Fill in details to create a new task"
+          }}
+        </p>
+      </template>
+      <!-- Body -->
+      <template #body>
+        <form @submit.prevent="submitForm" class="flex flex-col gap-4">
+          <!-- Title -->
+          <div>
+            <label class="block text-sm font-medium mb-1">Title</label>
+            <Input v-model="form.title" placeholder="Task Title" class="w-full" />
+            <InputError :message="form.errors.title" />
+          </div>
+          <!-- Description -->
+          <div>
+            <label class="text-sm font-medium mb-1 flex flex-row gap-2 items-baseline"
+              >Description
+              <p class="text-xs font-extralight">(markdown & tailwind supported!)</p>
+            </label>
+            <textarea
+              v-model="form.description"
+              placeholder="Describe the task..."
+              class="border rounded-lg p-3 text-sm w-full focus:ring-2 focus:ring-primary focus:outline-none transition"
+              rows="3"
+            ></textarea>
+            <InputError :message="form.errors.description" />
+          </div>
+
+          <!-- Modified section for Assignee and Project -->
+          <div class="w-full flex flex-row p-1 gap-2">
+            <!-- Assignee field - hidden for clients -->
+            <div class="w-1/2" v-if="user.role !== 'client'">
+              <label class="block text-sm font-medium mb-1">Assignee</label>
+              <Dropdown
+                v-model="form.to_id"
+                :options="
+                  props.names.map((user) => ({ label: user.name, value: user.id }))
+                "
+              />
+              <InputError :message="form.errors.to_id" />
+            </div>
+
+            <!-- Project field - shown for all users -->
+            <div :class="user.role === 'client' ? 'w-full' : 'w-1/2'">
+              <label class="block text-sm font-medium mb-1">Project</label>
+              <Dropdown
+                v-model="form.project_id"
+                :options="
+                  props.manager_of.map((project) => ({
+                    label: project.title,
+                    value: project.id,
+                  }))
+                "
+              />
+              <InputError :message="form.errors.project_id" />
+            </div>
+          </div>
+
+          <!-- Role field - hidden for clients -->
+          <div class="w-full flex flex-row p-1 gap-2" v-if="user.role !== 'client'">
+            <div class="w-1/2">
+              <label class="block text-sm font-medium mb-1">Role</label>
+              <Dropdown v-model="form.role_title" :options="options" />
+            </div>
+            <div
+              class="w-1/2"
+              v-if="
+                form.role_title === null ||
+                !options
+                  .filter((opt) => opt.value)
+                  .some((opt) => opt.value === form.role_title)
               "
-            />
-            <InputError :message="form.errors.to_id" />
+            >
+              <label class="block text-sm font-medium mb-1">New Role</label>
+              <Input
+                v-model="form.role_title"
+                class="mt-1"
+                placeholder="Enter new role_title"
+              />
+              <InputError :message="form.errors.role_title" />
+            </div>
+            <div class="w-1/2" v-if="isEditMode">
+              <label class="block text-sm font-medium mb-1">Status</label>
+              <Dropdown v-model="form.status" :options="statusOptions" />
+            </div>
           </div>
-          
-          <!-- Project field - shown for all users -->
-          <div :class="user.role === 'client' ? 'w-full' : 'w-1/2'">
-            <label class="block text-sm font-medium mb-1">Project</label>
-            <Dropdown
-              v-model="form.project_id"
-              :options="
-                props.manager_of.map((project) => ({
-                  label: project.title,
-                  value: project.id,
-                }))
-              "
-            />
-            <InputError :message="form.errors.project_id" />
+
+          <!-- Priority and Deadline -->
+          <div class="w-full flex flex-row p-1 gap-2">
+            <div class="w-1/2">
+              <label class="block text-sm font-medium mb-1">Priority</label>
+              <Dropdown
+                v-model="form.priority"
+                :options="[
+                  { label: 'Low', value: 'low' },
+                  { label: 'Medium', value: 'medium' },
+                  { label: 'High', value: 'high' },
+                ]"
+              />
+              <InputError :message="form.errors.priority" />
+            </div>
+            <div class="w-1/2">
+              <label class="block text-sm font-medium mb-1">Deadline</label>
+              <Picker v-model="form.deadline" />
+              <InputError :message="form.errors.deadline" />
+            </div>
           </div>
-        </div>
-        
-        <!-- Role field - hidden for clients -->
-        <div class="w-full flex flex-row p-1 gap-2" v-if="user.role !== 'client'">
-          <div class="w-1/2">
-            <label class="block text-sm font-medium mb-1">Role</label>
-            <Dropdown v-model="form.role_title" :options="options" />
-          </div>
-          <div
-            class="w-1/2"
-            v-if="
-              form.role_title === null ||
-              !options
-                .filter((opt) => opt.value)
-                .some((opt) => opt.value === form.role_title)
+        </form>
+      </template>
+      <!-- Footer -->
+      <template #footer>
+        <div class="flex justify-end gap-3">
+          <Button
+            variant="outline"
+            class="hover:bg-gray-100 dark:hover:bg-gray-800"
+            @click="
+              () => {
+                isDialogOpen.value = false;
+                isEditMode.value = false;
+                editId.value = null;
+              }
             "
           >
-            <label class="block text-sm font-medium mb-1">New Role</label>
-            <Input
-              v-model="form.role_title"
-              class="mt-1"
-              placeholder="Enter new role_title"
-            />
-            <InputError :message="form.errors.role_title" />
-          </div>
-          <div class="w-1/2" v-if="isEditMode">
-            <label class="block text-sm font-medium mb-1">Status</label>
-            <Dropdown v-model="form.status" :options="statusOptions" />
-          </div>
+            Cancel
+          </Button>
+          <Button
+            @click="submitForm"
+            :disabled="form.processing"
+            class="transition-transform hover:scale-105"
+          >
+            {{ isEditMode ? "Update" : "Create" }}
+          </Button>
         </div>
-
-        <!-- Priority and Deadline -->
-        <div class="w-full flex flex-row p-1 gap-2">
-          <div class="w-1/2">
-            <label class="block text-sm font-medium mb-1">Priority</label>
-            <Dropdown
-              v-model="form.priority"
-              :options="[
-                { label: 'Low', value: 'low' },
-                { label: 'Medium', value: 'medium' },
-                { label: 'High', value: 'high' },
-              ]"
-            />
-            <InputError :message="form.errors.priority" />
-          </div>
-          <div class="w-1/2">
-            <label class="block text-sm font-medium mb-1">Deadline</label>
-            <Picker v-model="form.deadline" />
-            <InputError :message="form.errors.deadline" />
-          </div>
-        </div>
-      </form>
-    </template>
-    <!-- Footer -->
-    <template #footer>
-      <div class="flex justify-end gap-3">
-        <Button
-          variant="outline"
-          class="hover:bg-gray-100 dark:hover:bg-gray-800"
-          @click="
-            () => {
-              isDialogOpen.value = false;
-              isEditMode.value = false;
-              editId.value = null;
-            }
-          "
-        >
-          Cancel
-        </Button>
-        <Button
-          @click="submitForm"
-          :disabled="form.processing"
-          class="transition-transform hover:scale-105"
-        >
-          {{ isEditMode ? "Update" : "Create" }}
-        </Button>
-      </div>
-    </template>
-  </Dialog>
+      </template>
+    </Dialog>
     <!-- View Dialog -->
     <Dialog v-model="isViewDialogOpen">
       <!-- Header -->

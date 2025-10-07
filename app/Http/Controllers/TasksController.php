@@ -286,13 +286,17 @@ public function create(Request $request)
     {
         $task = TasksModel::findOrFail($id);
         $user = auth()->user();
+        if ($user->role === 'admin') {
+            $task->delete();
+            return back()->with('success', 'Task deleted successfully!');
+        }
         $isManager = $user->managedProjects()
             ->where('id', $task->pr_id)
             ->exists();
-        if (! $isManager && $user->role !== 'admin') {
-            return redirect()->back()->with('error', 'You cannot delete this task!');
+        if ($isManager) {
+            $task->delete();
+            return back()->with('success', 'Task deleted successfully!');
         }
-        $task->delete();
-        return redirect()->back()->with('success', 'Task deleted successfully!');
+        return back()->with('error', 'You are not authorized to delete this task.');
     }
 }
