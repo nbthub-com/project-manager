@@ -380,12 +380,7 @@ function isManager(task) {
   // Find the project in the manager_of list that matches the task's project_id
   const project = props.manager_of.find((p) => p.id === task.project_id);
   // Return true if project exists and the current user is the manager of that project
-  return project && project.manager_id === user.id;
-}
-
-// Add a new function to check if user can delete the task
-function canDeleteTask(task) {
-  return role === "admin" || isManager(task);
+  return project && project.manager_id === user.id || user.role === 'admin';
 }
 
 // Status options for assignees (only pending, in_progress, completed)
@@ -659,7 +654,7 @@ async function deleteNote(id) {
                   </span>
                 </h3>
                 <button
-                  v-if="canDeleteTask(task)"
+                  v-if="isManager(task)"
                   class="text-red-200 hover:text-red-400 cursor-pointer"
                   @click="deleteTask(task.id)"
                 >
