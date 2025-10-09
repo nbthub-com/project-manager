@@ -24,6 +24,7 @@ import Viewer from "@/components/ui/md/viewer.vue";
 import { formatDate, toTitleCase } from "@/lib/utils.ts";
 import axios from "axios";
 import { Delete, Plus } from "lucide-vue-next";
+import { useNotes } from '@/composables/useNotes.js'
 
 const breadcrumbs = [{ title: "Tasks", href: "/tasks" }];
 const props = defineProps({
@@ -377,9 +378,7 @@ const projectOptions = computed(() => {
 });
 
 function isManager(task) {
-  // Find the project in the manager_of list that matches the task's project_id
   const project = props.manager_of.find((p) => p.id === task.project_id);
-  // Return true if project exists and the current user is the manager of that project
   return project && project.manager_id === user.id || user.role === 'admin';
 }
 
@@ -410,19 +409,6 @@ function updateTaskStatus(task, newStatus) {
     }
   );
 }
-// Get priority color
-function getPriorityColor(priority) {
-  switch (priority) {
-    case "high":
-      return "bg-red-500";
-    case "medium":
-      return "bg-yellow-500";
-    case "low":
-      return "bg-green-500";
-    default:
-      return "bg-gray-500";
-  }
-}
 
 onMounted(() => {
   // Set CSRF token for axios requests
@@ -436,29 +422,7 @@ onMounted(() => {
 
 const showDescription = ref(true);
 const note = ref("");
-
-// Add this after the existing functions
-async function addNote() {
-  const content = note.value.trim();
-  if (!content) return; // prevent empty notes
-
-  try {
-    const response = await axios.post("/notes", {
-      content,
-      context: "task",
-      context_id: viewTask.value.id,
-      member_id: user.id,
-    });
-
-    // Add new note to the current task's notes
-    viewTask.value.notes.push(response.data.note);
-
-    note.value = ""; // reset textarea after submit
-  } catch (error) {
-    console.error("Error adding note:", error);
-    alert("Failed to add note. Please try again.");
-  }
-}
+const addNote = () => {useNotes(note.value, 'task', viewTask.value, viewTask.value.notes);note.value = ''}
 
 async function deleteNote(id) {
   try {

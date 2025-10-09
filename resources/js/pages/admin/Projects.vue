@@ -220,6 +220,9 @@ function deleteProject(id) {
 }
 
 function openViewDialog(project) {
+  //  viewProject.value = project;
+  //  isViewDialogOpen.value = true;
+  // Above two lines can open the project in side drawer
   router.visit(`/admin/projects/${project.id}`)
 }
 
@@ -229,13 +232,7 @@ function formatStatus(status) {
 }
 const showDescription = ref(true);
 const note = ref('')
-/*
-            'content'    => 'required|string',
-            'context'    => 'required|in:proj,task',
-            'context_id' => 'required|integer',
-            'member_id'  => 'required|exists:users,id',
-            'type'       => 'nullable|in:note,question',
-*/
+
 onMounted(() => {
   // Set CSRF token for axios requests
   const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');

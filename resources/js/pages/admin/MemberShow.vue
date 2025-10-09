@@ -33,6 +33,7 @@ import Picker from "@/components/ui/date/Picker.vue";
 import { watchEffect } from "vue";
 import Viewer from "@/components/ui/md/viewer.vue";
 import axios from "axios";
+import { useNotes } from "@/composables/useNotes";
 
 // Define props
 const props = defineProps([
@@ -132,7 +133,14 @@ const tasksByStatus = computed(() => {
     }
   });
 
-  return statusGroups;
+  const result = {};
+  for (const status in statusGroups) {
+    if (statusGroups[status]?.length > 0) {
+      result[status] = statusGroups[status];
+    }
+  }
+
+  return result;
 });
 
 // Toggle status column
@@ -532,7 +540,7 @@ const projectStats = computed(() => {
   const totalTasks = tasks.length;
   const pendingTasks = tasks.filter((t) => t.status === "pending").length;
   const runningTasks = tasks.filter(
-    (t) => t.status === "running" || t.status === "in_progress"
+    (t) => t.status === "in_progress"
   ).length;
   const completedTasks = tasks.filter((t) => t.status === "completed").length;
 
@@ -564,39 +572,40 @@ function openTaskViewDialog(task) {
   mode.value = "task";
 }
 
-async function addNote() {
-  const content = note.value.trim();
-  if (!content) return;
-  try {
-    const response = await axios.post("/notes", {
-      content,
-      context: mode.value,
-      context_id: selected.value.id,
-      member_id: user.id,
-    });
-    selected.value.notes.push(response.data.note);
-    note.value = "";
-  } catch (error) {
-    console.error("Error adding note:", error);
-    alert("Failed to add note. Please try again.");
+const addNote = () => {
+  useNotes(note.value, mode.value, selected.value, selected.value.notes);
+  note.value = ''
+}
+
+const allProjects = computed(() => {
+  const projects = [];
+  
+  // Add managed projects
+  if (props.manager_of) {
+    projects.push(...props.manager_of);
   }
-}
+  
+  // Add projects from assigned tasks
+  if (member.assigned_tasks) {
+    member.assigned_tasks.forEach(task => {
+      if (task.project && !projects.some(p => p.id === task.project.id)) {
+        projects.push(task.project);
+      }
+    });
+  }
+  
+  // Add client projects if the user is a client
+  if (member.role === 'client' && member.client_projects) {
+    member.client_projects.forEach(project => {
+      if (!projects.some(p => p.id === project.id)) {
+        projects.push(project);
+      }
+    });
+  }
+  
+  return projects;
+});
 
-function getStatusClass(status) {
-  const statusClasses = {
-    completed: "bg-green-500/20 text-green-400",
-    running: "bg-blue-500/20 text-blue-400",
-    pending: "bg-yellow-500/20 text-yellow-400",
-    cancelled: "bg-red-500/20 text-red-400",
-  };
-  return statusClasses[status] || "bg-gray-500/20 text-gray-400";
-}
-
-function formatDate(dateString) {
-  if (!dateString) return "";
-  const date = new Date(dateString);
-  return date.toLocaleDateString();
-}
 </script>
 
 <template>
@@ -647,9 +656,8 @@ function formatDate(dateString) {
             :key="status"
             class="flex flex-col min-h-0 w-full md:w-80 md:flex-shrink-0 rounded-xl overflow-hidden border-2 border-primary"
           >
-            <!-- Status Header -->
             <div
-              class="bg-primary px-2 py-4 flex justify-between items-center hover:cursor-pointer hover:bg-primary/90 transition-colors duration-200"
+              class="bg-primary px-2 py-4 flex justify-between items-center hover:cursor-pointer hover:bg-primary transition-colors duration-200"
               @click="toggleStatus(status)"
             >
               <h2 class="text-lg font-bold">
@@ -735,8 +743,8 @@ function formatDate(dateString) {
               </div>
             </transition>
           </div>
+          </div>
         </div>
-      </div>
     </div>
 
     <!-- Details Dialog -->
@@ -873,7 +881,7 @@ function formatDate(dateString) {
                 <Dropdown
                   v-model="form.project_id"
                   :options="
-                    props.manager_of.map((project) => ({
+                    allProjects.map((project) => ({
                       label: project.title,
                       value: project.id,
                     }))
@@ -949,7 +957,7 @@ function formatDate(dateString) {
               <Dropdown
                 v-model="form.project_id"
                 :options="
-                  props.manager_of.map((project) => ({
+                  allProjects.map((project) => ({
                     label: project.title,
                     value: project.id,
                   }))
