@@ -18,6 +18,8 @@ import {
   Flame,
   Leaf,
   ChevronDown,
+  ChevronRight,
+  Flag,
 } from "lucide-vue-next";
 import Picker from "@/components/ui/date/Picker.vue";
 import Viewer from "@/components/ui/md/viewer.vue";
@@ -60,6 +62,59 @@ const filterForm = useForm({
   filter_project: filterProject.value,
   filter_priority: filterPriority.value,
 });
+
+// Check if user is a client
+const isClient = computed(() => role === 'client');
+
+// Group tasks by status for the Kanban board
+const tasksByStatus = computed(() => {
+  const allTasks = props.tasks?.data || [];
+  
+  const statusGroups = {
+    pending: [],
+    in_progress: [],
+    testing: [],
+    review: [],
+    completed: [],
+    cancelled: [],
+  };
+
+  allTasks.forEach((task) => {
+    if (statusGroups[task.status]) {
+      statusGroups[task.status].push(task);
+    } else {
+      statusGroups.pending.push(task); // Fallback to pending if status is unknown
+    }
+  });
+
+  const result = {};
+  for (const status in statusGroups) {
+    if (statusGroups[status]?.length > 0) {
+      result[status] = statusGroups[status];
+    }
+  }
+
+  return result;
+});
+
+// Collapsible state for status columns
+const openStatusIds = ref([
+  "pending",
+  "in_progress", 
+  "testing",
+  "review",
+  "completed",
+  "cancelled",
+]);
+
+// Toggle status column
+const toggleStatus = (status) => {
+  if (openStatusIds.value.includes(status)) {
+    openStatusIds.value = openStatusIds.value.filter((s) => s !== status);
+  } else {
+    openStatusIds.value.push(status);
+  }
+};
 
 // Watch for props changes to update pagination state
 watch(
@@ -589,8 +644,108 @@ async function deleteNote(id) {
         </Button>
       </div>
 
-      <!-- Tasks Grid -->
-      <div class="grid gap-6 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 p-3">
+      <!-- Conditional Layout: Kanban for Clients, Grid for Others -->
+      <!-- Kanban Board for Clients -->
+      <div v-if="isClient" class="flex-grow overflow-auto p-2">
+        <div class="flex flex-col md:flex-row md:overflow-x-auto gap-2 md:min-w-fit items-start">
+          <div
+            v-for="(tasks, status) in tasksByStatus"
+            :key="status"
+            class="flex flex-col min-h-0 w-full md:w-80 md:flex-shrink-0 rounded-xl overflow-hidden border-2 border-primary"
+          >
+            <div
+              class="bg-primary px-2 py-4 flex justify-between items-center hover:cursor-pointer hover:bg-primary transition-colors duration-200"
+              @click="toggleStatus(status)"
+            >
+              <h2 class="text-lg font-bold">
+                {{ toTitleCase(status.replace("_", " ")) }}
+              </h2>
+              <div class="flex items-center">
+                <span class="text-xs bg-secondary/60 px-2 py-1 rounded-full mr-2">
+                  {{ tasks.length }} tasks
+                </span>
+                <ChevronDown
+                  v-if="openStatusIds.includes(status)"
+                  class="w-5 h-5 transition-transform duration-300 transform rotate-180"
+                />
+                <ChevronRight v-else class="w-5 h-5 transition-transform duration-300" />
+              </div>
+            </div>
+
+            <!-- Collapsible Task List -->
+            <transition
+              enter-active-class="transition duration-300 ease-out"
+              enter-from-class="transform opacity-0 -translate-y-2"
+              enter-to-class="transform opacity-100 translate-y-0"
+              leave-active-class="transition duration-200 ease-in"
+              leave-from-class="transform opacity-100 translate-y-0"
+              leave-to-class="transform opacity-0 -translate-y-2"
+            >
+              <div
+                v-show="openStatusIds.includes(status)"
+                class="overflow-hidden flex flex-col min-h-0"
+              >
+                <div v-if="tasks.length" class="flex flex-col">
+                  <div
+                    v-for="task in tasks"
+                    :key="task.id"
+                    class="p-2 w-full border-b-2 border-primary/30 flex flex-col hover:bg-primary/10 transition-colors duration-150"
+                    :class="task.status === 'cancelled' ? 'text-red-300' : 'text-white'"
+                  >
+                    <div class="w-full flex flex-row items-center justify-between mb-1">
+                      <div
+                        class="flex items-center gap-2 hover:underline hover:cursor-pointer font-bold text-md"
+                        @click="openViewDialog(task)"
+                      >
+                        <p>{{ toTitleCase(task.title) }}</p>
+                        <span class="text-xs text-gray-400">
+                          ({{ task.project || "Assigned" }})
+                        </span>
+                      </div>
+                      <Edit
+                        v-if="isManager(task)"
+                        class="w-4 h-4 hover:bg-primary hover:cursor-pointer rounded-sm"
+                        @click="editTask(task)"
+                      />
+                    </div>
+                    <div class="flex flex-wrap items-center gap-2 text-xs text-gray-200">
+                      <div class="flex items-center gap-1 text-gray-300">
+                        <span class="opacity-80">For</span>
+                        <span class="font-semibold text-gray-100">
+                          {{ toTitleCase(task.assignee) || "Unassigned" }}
+                        </span>
+                      </div>
+                      <div
+                        class="font-medium flex flex-row gap-1 items-center"
+                        :class="{
+                          'text-green-500': task.priority === 'low',
+                          'text-yellow-400': task.priority === 'medium',
+                          'text-red-400': task.priority === 'high',
+                        }"
+                      >
+                        <Flag
+                          class="w-3 h-3"
+                          :class="{
+                            'fill-green-300': task.priority === 'low',
+                            'fill-yellow-200': task.priority === 'medium',
+                            'fill-red-200': task.priority === 'high',
+                          }"
+                        />{{ toTitleCase(task.priority) }}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div v-else class="text-sm italic px-2 py-2 text-center">
+                  No tasks in this status.
+                </div>
+              </div>
+            </transition>
+          </div>
+        </div>
+      </div>
+
+      <!-- Original Grid Layout (for non-clients) -->
+      <div v-else class="grid gap-6 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 p-3">
         <template v-if="props.tasks?.data?.length">
           <div
             v-for="task in props.tasks.data"
@@ -748,6 +903,7 @@ async function deleteNote(id) {
           </div>
         </template>
       </div>
+
       <!-- Use the new Pagination component -->
       <Pagination
         v-if="props.tasks"
