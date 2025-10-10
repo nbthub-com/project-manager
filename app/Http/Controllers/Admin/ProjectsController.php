@@ -144,6 +144,23 @@ public function viewProject($id) {
             'status' => 'in_progress'
         ]);
 
+        \Mail::raw(
+            "You are now the owner of the project: {$validated['title']}",
+            function ($message) use ($client, $validated) {
+                $message->to($client->email)
+                    ->subject("You own the project: {$validated['title']}");
+            }
+        );
+
+        // Send mail to manager
+        \Mail::raw(
+            "You have been assigned as manager for the project: {$validated['title']}",
+            function ($message) use ($manager, $validated) {
+                $message->to($manager->email)
+                    ->subject("Assigned as manager for project: {$validated['title']}");
+            }
+        );
+
         return redirect()->back()
             ->with('success', 'Project added successfully!');
     }

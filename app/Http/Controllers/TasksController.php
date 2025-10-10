@@ -213,7 +213,19 @@ public function create(Request $request)
         $validated['to_id'] = $project->manager_id;
         $validated['role_title'] = 'not-assigned';
     }
-    
+    $project = ProjectsModel::find($validated['project_id']);
+    $managerEmail = $project && $project->manager ? $project->manager->email : null;
+    $assignee = User::find($validated['to_id']);
+    $assigneeEmail = $assignee ? $assignee->email : null;
+    $adminEmails = User::where('role', 'admin')->pluck('email')->toArray();
+
+    $recipients = collect([$managerEmail, $assigneeEmail])
+        ->merge($adminEmails)
+        ->filter()
+        ->unique()
+        ->values()
+        ->toArray();
+
     TasksModel::create([
         'title'       => $validated['title'],
         'description' => $validated['description'],
@@ -225,7 +237,16 @@ public function create(Request $request)
         'priority'    => $validated['priority'],
         'deadline'    => $validated['deadline'],
     ]);
-    
+
+    if (!empty($recipients)) {
+        \Mail::raw(
+            'A new task has been assigned: ' . $validated['title'],
+            function ($message) use ($recipients) {
+                $message->to($recipients)
+                    ->subject('New Task Assigned');
+            }
+        );
+    }
     return redirect()->back()->with('success', 'Task created successfully.');
 }
     public function update(Request $request, $id)

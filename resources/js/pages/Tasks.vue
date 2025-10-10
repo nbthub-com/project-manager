@@ -651,7 +651,7 @@ async function deleteNote(id) {
           <div
             v-for="(tasks, status) in tasksByStatus"
             :key="status"
-            class="flex flex-col min-h-0 w-full md:w-80 md:flex-shrink-0 rounded-xl overflow-hidden border-2 border-primary"
+            class="flex flex-col min-h-full w-full md:w-80 md:flex-shrink-0 rounded-xl overflow-hidden border-2 border-primary"
           >
             <div
               class="bg-primary px-2 py-4 flex justify-between items-center hover:cursor-pointer hover:bg-primary transition-colors duration-200"
