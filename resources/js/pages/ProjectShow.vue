@@ -11,13 +11,17 @@ import { toTitleCase } from "@/lib/utils";
 import { Head, useForm } from "@inertiajs/vue3";
 import {
   Activity,
+  AlertTriangle,
   BarChart3,
   Calendar,
   ChevronDown,
+  ChevronRight,
   Edit,
   Eye,
   Filter,
+  Flame,
   Gauge,
+  Leaf,
   List,
   ListCheckIcon,
   Loader2,
@@ -26,6 +30,7 @@ import {
   Search,
   TimerIcon,
   View,
+  Flag
 } from "lucide-vue-next";
 import { ref, computed } from "vue";
 import { defineProps } from "vue";
@@ -54,8 +59,13 @@ const searchQuery = ref("");
 const filterStatus = ref(null);
 const filterPriority = ref(null);
 
+// Modified to attach project to each task
 const filteredTasks = computed(() => {
-  let tasks = props.project.tasks;
+  let tasks = props.project.tasks.map(task => ({
+    ...task,
+    project: props.project // Attach project to each task
+  }));
+  
   if (searchQuery.value) {
     tasks = tasks.filter((task) =>
       task.title.toLowerCase().includes(searchQuery.value.toLowerCase())
@@ -69,6 +79,54 @@ const filteredTasks = computed(() => {
   }
   return tasks;
 });
+
+// Group tasks by status
+const tasksByStatus = computed(() => {
+  const statusGroups = {
+    pending: [],
+    in_progress: [],
+    testing: [],
+    review: [],
+    completed: [],
+    cancelled: [],
+  };
+
+  filteredTasks.value.forEach(task => {
+    if (statusGroups[task.status]) {
+      statusGroups[task.status].push(task);
+    } else {
+      statusGroups.pending.push(task); // Fallback to pending if status is unknown
+    }
+  });
+
+  // Remove empty groups
+  const result = {};
+  for (const status in statusGroups) {
+    if (statusGroups[status]?.length > 0) {
+      result[status] = statusGroups[status];
+    }
+  }
+
+  return result;
+});
+
+// For collapsible columns
+const openStatusIds = ref([
+  "pending",
+  "in_progress",
+  "testing",
+  "review",
+  "completed",
+  "cancelled",
+]);
+
+const toggleStatus = (status) => {
+  if (openStatusIds.value.includes(status)) {
+    openStatusIds.value = openStatusIds.value.filter((s) => s !== status);
+  } else {
+    openStatusIds.value.push(status);
+  }
+};
 
 const viewTask = ref(null);
 const isViewDialogOpen = ref(false);
@@ -317,36 +375,104 @@ const openFilter = ref(false);
             </Button>
           </div>
         </div>
-        <div class="w-full px-3 gap-2 mt-4 grid grid-cols-1 sm:grid-cols-4">
-          <div
-            v-for="task in filteredTasks"
-            :key="task.id"
-            class="p-4 rounded-xl shadow-lg text-white transition transform hover:scale-[1.005] hover:shadow-xl flex flex-row justify-between"
-            :class="
-              task.status === 'cancelled'
-                ? 'bg-red-600'
-                : 'bg-gradient-to-br from-[#5a248a] to-secondary'
-            "
-          >
-            <span class="font-bold truncate">{{ toTitleCase(task.title) }}</span>
-            <div class="flex flex-row gap-1">
-              <button
-                @click="openTask(task)"
-                class="w-fit cursor-pointer h-fit hover:bg-primary rounded-sm p-0.5"
+
+        <!-- New Column-based Task Layout -->
+        <div class="flex-grow overflow-auto p-2">
+          <div class="flex flex-col md:flex-row md:overflow-x-auto gap-2 md:min-w-fit items-start">
+            <div
+              v-for="(tasks, status) in tasksByStatus"
+              :key="status"
+              class="flex flex-col min-h-0 w-full md:w-80 md:flex-shrink-0 rounded-xl overflow-hidden border-2 border-primary"
+            >
+              <div
+                class="bg-primary px-2 py-4 flex justify-between items-center hover:cursor-pointer hover:bg-primary transition-colors duration-200"
+                @click="toggleStatus(status)"
               >
-                <Eye class="w-5 h-5" />
-              </button>
-              <button
-                @click="openEdit(task)"
-                class="w-fit cursor-pointer h-fit hover:bg-primary rounded-sm p-0.5"
+                <h2 class="text-lg font-bold">
+                  {{ toTitleCase(status.replace("_", " ")) }}
+                </h2>
+                <div class="flex items-center">
+                  <span class="text-xs bg-secondary/60 px-2 py-1 rounded-full mr-2">
+                    {{ tasks.length }} tasks
+                  </span>
+                  <ChevronDown
+                    v-if="openStatusIds.includes(status)"
+                    class="w-5 h-5 transition-transform duration-300 transform rotate-180"
+                  />
+                  <ChevronRight v-else class="w-5 h-5 transition-transform duration-300" />
+                </div>
+              </div>
+
+              <!-- Collapsible Task List -->
+              <transition
+                enter-active-class="transition duration-300 ease-out"
+                enter-from-class="transform opacity-0 -translate-y-2"
+                enter-to-class="transform opacity-100 translate-y-0"
+                leave-active-class="transition duration-200 ease-in"
+                leave-from-class="transform opacity-100 translate-y-0"
+                leave-to-class="transform opacity-0 -translate-y-2"
               >
-                <Edit class="w-5 h-5" />
-              </button>
+                <div
+                  v-show="openStatusIds.includes(status)"
+                  class="overflow-hidden flex flex-col min-h-0"
+                >
+                  <div v-if="tasks.length" class="flex flex-col">
+                    <div
+                      v-for="task in tasks"
+                      :key="task.id"
+                      class="p-2 w-full border-b-2 border-primary/30 flex flex-col hover:bg-primary/10 transition-colors duration-150"
+                      :class="task.status === 'cancelled' ? 'text-red-300' : 'text-white'"
+                    >
+                      <div class="w-full flex flex-row items-center justify-between mb-1">
+                        <div
+                          class="flex items-center gap-2 hover:underline hover:cursor-pointer font-bold text-md"
+                          @click="openTask(task)"
+                        >
+                          <p>{{ toTitleCase(task.title) }}</p>
+                        </div>
+                        <Edit
+                          class="w-4 h-4 hover:bg-primary hover:cursor-pointer rounded-sm"
+                          @click="openEdit(task)"
+                        />
+                      </div>
+                      <div class="flex flex-wrap items-center gap-2 text-xs text-gray-200">
+                        <div class="flex items-center gap-1 text-gray-300">
+                          <span class="opacity-80">For</span>
+                          <span class="font-semibold text-gray-100">
+                            {{ toTitleCase(task.assignee?.name) || "Unassigned" }}
+                          </span>
+                        </div>
+                        <div
+                          class="font-medium flex flex-row gap-1 items-center"
+                          :class="{
+                            'text-green-500': task.priority === 'low',
+                            'text-yellow-400': task.priority === 'medium',
+                            'text-red-400': task.priority === 'high',
+                          }"
+                        >
+                          <Flag
+                            class="w-3 h-3"
+                            :class="{
+                              'fill-green-300': task.priority === 'low',
+                              'fill-yellow-200': task.priority === 'medium',
+                              'fill-red-200': task.priority === 'high',
+                            }"
+                          />{{ toTitleCase(task.priority) }}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div v-else class="text-sm italic px-2 py-2 text-center">
+                    No tasks in this status.
+                  </div>
+                </div>
+              </transition>
             </div>
           </div>
         </div>
       </div>
     </div>
+    
     <!-- Details Dialog -->
     <Dialog v-model="isDetailsDialogOpen">
       <template #header>
@@ -386,6 +512,7 @@ const openFilter = ref(false);
         </div>
       </template>
     </Dialog>
+    
     <!-- View Task Dialog -->
     <Dialog v-model="isViewDialogOpen" v-if="viewTask">
       <template #header>
@@ -691,13 +818,13 @@ const openFilter = ref(false);
               </div>
             </div>
           </div>
-            <div>
-              <label class="block text-sm font-medium mb-1">Deadline</label>
-              <Picker v-model="taskForm.deadline" />
-              <div v-if="taskForm.errors.deadline" class="text-red-500 text-xs mt-1">
-                {{ taskForm.errors.deadline }}
-              </div>
+          <div>
+            <label class="block text-sm font-medium mb-1">Deadline</label>
+            <Picker v-model="taskForm.deadline" />
+            <div v-if="taskForm.errors.deadline" class="text-red-500 text-xs mt-1">
+              {{ taskForm.errors.deadline }}
             </div>
+          </div>
         </form>
       </template>
 

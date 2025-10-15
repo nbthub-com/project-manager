@@ -76,25 +76,69 @@ const editId = ref(null);
 const tasksByStatus = computed(() => {
   const allTasks = [];
 
-  // Collect tasks from assigned_tasks
+  // Collect tasks from assigned_tasks and attach project if available
   if (member.assigned_tasks) {
-    allTasks.push(...member.assigned_tasks);
-  }
+    member.assigned_tasks.forEach((task) => {
+      // If task already has project, use it; otherwise try to find it
+      if (task.project) {
+        allTasks.push(task);
+      } else {
+        // Try to find the project for this task
+        let projectFound = false;
 
-  // Collect tasks from managed_projects
-  if (member.managed_projects) {
-    member.managed_projects.forEach((project) => {
-      if (project.tasks) {
-        allTasks.push(...project.tasks);
+        // Check in managed_projects
+        if (member.managed_projects) {
+          for (const project of member.managed_projects) {
+            if (project.tasks && project.tasks.some((t) => t.id === task.id)) {
+              allTasks.push({ ...task, project });
+              projectFound = true;
+              break;
+            }
+          }
+        }
+
+        // Check in client_projects if not found yet
+        if (!projectFound && member.client_projects) {
+          for (const project of member.client_projects) {
+            if (project.tasks && project.tasks.some((t) => t.id === task.id)) {
+              allTasks.push({ ...task, project });
+              break;
+            }
+          }
+        }
+
+        // If no project found, add task without project
+        if (!projectFound) {
+          allTasks.push(task);
+        }
       }
     });
   }
 
-  // Collect tasks from client_projects
+  // Collect tasks from managed_projects and attach project
+  if (member.managed_projects) {
+    member.managed_projects.forEach((project) => {
+      if (project.tasks) {
+        project.tasks.forEach((task) => {
+          // Only add if not already added from assigned_tasks
+          if (!allTasks.some((t) => t.id === task.id)) {
+            allTasks.push({ ...task, project });
+          }
+        });
+      }
+    });
+  }
+
+  // Collect tasks from client_projects and attach project
   if (member.client_projects) {
     member.client_projects.forEach((project) => {
       if (project.tasks) {
-        allTasks.push(...project.tasks);
+        project.tasks.forEach((task) => {
+          // Only add if not already added from assigned_tasks or managed_projects
+          if (!allTasks.some((t) => t.id === task.id)) {
+            allTasks.push({ ...task, project });
+          }
+        });
       }
     });
   }
@@ -110,7 +154,7 @@ const tasksByStatus = computed(() => {
     ? uniqueTasks.filter(
         (task) =>
           task.title.toLowerCase().includes(query) ||
-          task.project?.title?.toLowerCase()?.includes(query) ||
+          (task.project && task.project.title.toLowerCase().includes(query)) ||
           false
       )
     : uniqueTasks;
@@ -159,7 +203,8 @@ const stats = computed(() => {
     const totalProjects = clientProjects.length;
     const completedProjects = clientProjects.filter((p) => p.status === "completed")
       .length;
-    const runningProjects = clientProjects.filter((p) => p.status === "running").length;
+    const runningProjects = clientProjects.filter((p) => p.status === "in_progress")
+      .length;
 
     const allTasks = [];
     clientProjects.forEach((project) => {
@@ -169,7 +214,7 @@ const stats = computed(() => {
     });
     const totalTasks = allTasks.length;
     const completedTasks = allTasks.filter((t) => t.status === "completed").length;
-    const runningTasks = allTasks.filter((t) => t.status === "running").length;
+    const runningTasks = allTasks.filter((t) => t.status === "in_progress").length;
 
     return {
       totalTasks,
@@ -183,7 +228,7 @@ const stats = computed(() => {
     const assignedTasks = member.assigned_tasks || [];
     const totalTasks = assignedTasks.length;
     const completedTasks = assignedTasks.filter((t) => t.status === "completed").length;
-    const runningTasks = assignedTasks.filter((t) => t.status === "running").length;
+    const runningTasks = assignedTasks.filter((t) => t.status === "in_progress").length;
 
     const projectMap = new Map();
     for (const task of assignedTasks) {
@@ -196,7 +241,8 @@ const stats = computed(() => {
     const totalProjects = assignedProjects.length;
     const completedProjects = assignedProjects.filter((p) => p.status === "completed")
       .length;
-    const runningProjects = assignedProjects.filter((p) => p.status === "running").length;
+    const runningProjects = assignedProjects.filter((p) => p.status === "in_progress")
+      .length;
 
     return {
       totalTasks,
@@ -290,7 +336,8 @@ function openEditDialog(task) {
   form.title = task.title;
   form.description = task.description;
   form.to_id = task.to_id;
-  form.project_id = task.pr_id || task.project_id;
+  form.project_id =
+    task.pr_id || task.project_id || (task.project ? task.project.id : null);
   form.status = task.status;
   form.role_title = task.role_title || "frontend-developer";
   form.priority = task.priority || "medium";
@@ -539,9 +586,7 @@ const projectStats = computed(() => {
   const tasks = selectedProject.value.tasks || [];
   const totalTasks = tasks.length;
   const pendingTasks = tasks.filter((t) => t.status === "pending").length;
-  const runningTasks = tasks.filter(
-    (t) => t.status === "in_progress"
-  ).length;
+  const runningTasks = tasks.filter((t) => t.status === "in_progress").length;
   const completedTasks = tasks.filter((t) => t.status === "completed").length;
 
   return {
@@ -574,38 +619,37 @@ function openTaskViewDialog(task) {
 
 const addNote = () => {
   useNotes(note.value, mode.value, selected.value, selected.value.notes);
-  note.value = ''
-}
+  note.value = "";
+};
 
 const allProjects = computed(() => {
   const projects = [];
-  
+
   // Add managed projects
   if (props.manager_of) {
     projects.push(...props.manager_of);
   }
-  
+
   // Add projects from assigned tasks
   if (member.assigned_tasks) {
-    member.assigned_tasks.forEach(task => {
-      if (task.project && !projects.some(p => p.id === task.project.id)) {
+    member.assigned_tasks.forEach((task) => {
+      if (task.project && !projects.some((p) => p.id === task.project.id)) {
         projects.push(task.project);
       }
     });
   }
-  
+
   // Add client projects if the user is a client
-  if (member.role === 'client' && member.client_projects) {
-    member.client_projects.forEach(project => {
-      if (!projects.some(p => p.id === project.id)) {
+  if (member.role === "client" && member.client_projects) {
+    member.client_projects.forEach((project) => {
+      if (!projects.some((p) => p.id === project.id)) {
         projects.push(project);
       }
     });
   }
-  
+
   return projects;
 });
-
 </script>
 
 <template>
@@ -650,7 +694,9 @@ const allProjects = computed(() => {
 
       <!-- Status-Based Columns -->
       <div class="flex-grow overflow-auto p-2">
-        <div class="flex flex-col md:flex-row md:overflow-x-auto gap-2 md:min-w-fit items-start">
+        <div
+          class="flex flex-col md:flex-row md:overflow-x-auto gap-2 md:min-w-fit items-start"
+        >
           <div
             v-for="(tasks, status) in tasksByStatus"
             :key="status"
@@ -693,16 +739,21 @@ const allProjects = computed(() => {
                     v-for="task in tasks"
                     :key="task.id"
                     class="p-2 w-full border-b-2 border-primary/30 flex flex-col hover:bg-primary/10 transition-colors duration-150"
-                    :class="task.status === 'cancelled' ? 'text-red-300' : 'text-white'"
+                    :class="{
+                      'text-red-300': task.status === 'cancelled',
+                      'text-white': task.status !== 'cancelled',
+                    }"
                   >
                     <div class="w-full flex flex-row items-center justify-between mb-1">
                       <div
                         class="flex items-center gap-2 hover:underline hover:cursor-pointer font-bold text-md"
                         @click="openTaskViewDialog(task)"
                       >
-                        <p>{{ toTitleCase(task.title) }}</p>
+                        <p>
+                          {{ toTitleCase(task.title) }}
+                        </p>
                         <span class="text-xs text-gray-400">
-                          ({{ task.project?.title || "Assigned" }})
+                          ({{ task.project?.title || "No Project" }})
                         </span>
                       </div>
                       <Edit
@@ -743,8 +794,8 @@ const allProjects = computed(() => {
               </div>
             </transition>
           </div>
-          </div>
         </div>
+      </div>
     </div>
 
     <!-- Details Dialog -->

@@ -644,8 +644,6 @@ async function deleteNote(id) {
         </Button>
       </div>
 
-      <!-- Conditional Layout: Kanban for Clients, Grid for Others -->
-      <!-- Kanban Board for Clients -->
       <div v-if="isClient" class="flex-grow overflow-auto p-2">
         <div class="flex flex-col md:flex-row md:overflow-x-auto gap-2 md:min-w-fit items-start">
           <div
